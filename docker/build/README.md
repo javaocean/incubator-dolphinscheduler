@@ -13,90 +13,83 @@ Official Website: https://dolphinscheduler.apache.org
 
 ## How to use this docker image
 
-#### You can start a dolphinscheduler instance
+#### You can start a dolphinscheduler by docker-compose (recommended)
+
 ```
-$ docker run -dit --name dolphinscheduler \ 
--e DATABASE_USERNAME=test -e DATABASE_PASSWORD=test -e DATABASE_DATABASE=dolphinscheduler \
--p 8888:8888 \
-dolphinscheduler all
+$ docker-compose -f ./docker/docker-swarm/docker-compose.yml up -d
 ```
 
-The default postgres user `root`, postgres password `root` and database `dolphinscheduler` are created in the `startup.sh`.
+The default **postgres** user `root`, postgres password `root` and database `dolphinscheduler` are created in the `docker-compose.yml`.
 
-The default zookeeper is created in the `startup.sh`.
+The default **zookeeper** is created in the `docker-compose.yml`.
+
+Access the Web UI：http://192.168.xx.xx:12345
 
 #### Or via Environment Variables **`DATABASE_HOST`** **`DATABASE_PORT`** **`DATABASE_DATABASE`** **`ZOOKEEPER_QUORUM`**
 
-You can specify **existing postgres service**. Example:
+You can specify **existing postgres and zookeeper service**. Example:
 
 ```
-$ docker run -dit --name dolphinscheduler \
+$ docker run -d --name dolphinscheduler \
+-e ZOOKEEPER_QUORUM="192.168.x.x:2181" \
 -e DATABASE_HOST="192.168.x.x" -e DATABASE_PORT="5432" -e DATABASE_DATABASE="dolphinscheduler" \
 -e DATABASE_USERNAME="test" -e DATABASE_PASSWORD="test" \
--p 8888:8888 \
-dolphinscheduler all
+-p 12345:12345 \
+apache/dolphinscheduler:latest all
 ```
 
-You can specify **existing zookeeper service**. Example:
-
-```
-$ docker run -dit --name dolphinscheduler \
--e ZOOKEEPER_QUORUM="l92.168.x.x:2181"
--e DATABASE_USERNAME="test" -e DATABASE_PASSWORD="test" -e DATABASE_DATABASE="dolphinscheduler" \
--p 8888:8888 \
-dolphinscheduler all
-```
+Access the Web UI：http://192.168.xx.xx:12345
 
 #### Or start a standalone dolphinscheduler server
 
 You can start a standalone dolphinscheduler server.
 
+* Create a **local volume** for resource storage, For example:
+
+```
+docker volume create dolphinscheduler-resource-local
+```
+
 * Start a **master server**, For example:
 
 ```
-$ docker run -dit --name dolphinscheduler \
--e ZOOKEEPER_QUORUM="l92.168.x.x:2181"
+$ docker run -d --name dolphinscheduler-master \
+-e ZOOKEEPER_QUORUM="192.168.x.x:2181" \
 -e DATABASE_HOST="192.168.x.x" -e DATABASE_PORT="5432" -e DATABASE_DATABASE="dolphinscheduler" \
 -e DATABASE_USERNAME="test" -e DATABASE_PASSWORD="test" \
-dolphinscheduler master-server
+apache/dolphinscheduler:latest master-server
 ```
 
 * Start a **worker server**, For example:
 
 ```
-$ docker run -dit --name dolphinscheduler \
--e ZOOKEEPER_QUORUM="l92.168.x.x:2181"
+$ docker run -d --name dolphinscheduler-worker \
+-e ZOOKEEPER_QUORUM="192.168.x.x:2181" \
 -e DATABASE_HOST="192.168.x.x" -e DATABASE_PORT="5432" -e DATABASE_DATABASE="dolphinscheduler" \
 -e DATABASE_USERNAME="test" -e DATABASE_PASSWORD="test" \
-dolphinscheduler worker-server
+-v dolphinscheduler-resource-local:/dolphinscheduler \
+apache/dolphinscheduler:latest worker-server
 ```
 
 * Start a **api server**, For example:
 
 ```
-$ docker run -dit --name dolphinscheduler \
+$ docker run -d --name dolphinscheduler-api \
+-e ZOOKEEPER_QUORUM="192.168.x.x:2181" \
 -e DATABASE_HOST="192.168.x.x" -e DATABASE_PORT="5432" -e DATABASE_DATABASE="dolphinscheduler" \
 -e DATABASE_USERNAME="test" -e DATABASE_PASSWORD="test" \
+-v dolphinscheduler-resource-local:/dolphinscheduler \
 -p 12345:12345 \
-dolphinscheduler api-server
+apache/dolphinscheduler:latest api-server
 ```
 
 * Start a **alert server**, For example:
 
 ```
-$ docker run -dit --name dolphinscheduler \
+$ docker run -d --name dolphinscheduler-alert \
 -e DATABASE_HOST="192.168.x.x" -e DATABASE_PORT="5432" -e DATABASE_DATABASE="dolphinscheduler" \
 -e DATABASE_USERNAME="test" -e DATABASE_PASSWORD="test" \
-dolphinscheduler alert-server
-```
-
-* Start a **frontend**, For example:
-
-```
-$ docker run -dit --name dolphinscheduler \
--e FRONTEND_API_SERVER_HOST="192.168.x.x" -e FRONTEND_API_SERVER_PORT="12345" \
--p 8888:8888 \
-dolphinscheduler frontend
+apache/dolphinscheduler:latest alert-server
 ```
 
 **Note**: You must be specify `DATABASE_HOST` `DATABASE_PORT` `DATABASE_DATABASE` `DATABASE_USERNAME` `DATABASE_PASSWORD` `ZOOKEEPER_QUORUM` when start a standalone dolphinscheduler server.
@@ -115,7 +108,7 @@ $ sh ./docker/build/hooks/build
 In Windows, Example:
 
 ```bat
-c:\incubator-dolphinscheduler>.\docker\build\hooks\build.bat
+C:\incubator-dolphinscheduler>.\docker\build\hooks\build.bat
 ```
 
 Please read `./docker/build/hooks/build` `./docker/build/hooks/build.bat` script files if you don't understand
@@ -180,11 +173,39 @@ This environment variable sets the runtime environment for task. The default val
 
 User data directory path, self configuration, please make sure the directory exists and have read write permissions. The default value is `/tmp/dolphinscheduler`
 
+**`RESOURCE_STORAGE_TYPE`**
+
+This environment variable sets resource storage type for dolphinscheduler like `HDFS`, `S3`, `NONE`. The default value is `HDFS`.
+
+**`RESOURCE_UPLOAD_PATH`**
+
+This environment variable sets resource store path on HDFS/S3 for resource storage. The default value is `/dolphinscheduler`.
+
+**`FS_DEFAULT_FS`**
+
+This environment variable sets fs.defaultFS for resource storage like `file:///`, `hdfs://mycluster:8020` or `s3a://dolphinscheduler`. The default value is `file:///`.
+
+**`FS_S3A_ENDPOINT`**
+
+This environment variable sets s3 endpoint for resource storage. The default value is `s3.xxx.amazonaws.com`.
+
+**`FS_S3A_ACCESS_KEY`**
+
+This environment variable sets s3 access key for resource storage. The default value is `xxxxxxx`.
+
+**`FS_S3A_SECRET_KEY`**
+
+This environment variable sets s3 secret key for resource storage. The default value is `xxxxxxx`.
+
 **`ZOOKEEPER_QUORUM`**
 
 This environment variable sets zookeeper quorum for `master-server` and `worker-serverr`. The default value is `127.0.0.1:2181`.
 
 **Note**: You must be specify it when start a standalone dolphinscheduler server. Like `master-server`, `worker-server`.
+
+**`ZOOKEEPER_ROOT`**
+
+This environment variable sets zookeeper root directory for dolphinscheduler. The default value is `/dolphinscheduler`.
 
 **`MASTER_EXEC_THREADS`**
 
@@ -225,10 +246,6 @@ This environment variable sets exec thread num for `worker-server`. The default 
 **`WORKER_HEARTBEAT_INTERVAL`**
 
 This environment variable sets heartbeat interval for `worker-server`. The default value is `10`.
-
-**`WORKER_FETCH_TASK_NUM`**
-
-This environment variable sets fetch task num for `worker-server`. The default value is `3`.
 
 **`WORKER_MAX_CPULOAD_AVG`**
 
@@ -302,18 +319,6 @@ This environment variable sets enterprise wechat agent id for `alert-server`. Th
 
 This environment variable sets enterprise wechat users for `alert-server`. The default value is empty.
 
-**`FRONTEND_API_SERVER_HOST`**
-
-This environment variable sets api server host for `frontend`. The default value is `127.0.0.1`.
-
-**Note**: You must be specify it when start a standalone dolphinscheduler server. Like `api-server`.
-
-**`FRONTEND_API_SERVER_PORT`**
-
-This environment variable sets api server port for `frontend`. The default value is `123451`.
-
-**Note**: You must be specify it when start a standalone dolphinscheduler server. Like `api-server`.
-
 ## Initialization scripts
 
 If you would like to do additional initialization in an image derived from this one, add one or more environment variable under `/root/start-init-conf.sh`, and modify template files in `/opt/dolphinscheduler/conf/*.tpl`.
@@ -322,7 +327,7 @@ For example, to add an environment variable `API_SERVER_PORT` in `/root/start-in
 
 ```
 export API_SERVER_PORT=5555
-``` 
+```
 
 and to modify `/opt/dolphinscheduler/conf/application-api.properties.tpl` template file, add server port:
 ```
@@ -339,8 +344,4 @@ $(cat ${DOLPHINSCHEDULER_HOME}/conf/${line})
 EOF
 " > ${DOLPHINSCHEDULER_HOME}/conf/${line%.*}
 done
-
-echo "generate nginx config"
-sed -i "s/FRONTEND_API_SERVER_HOST/${FRONTEND_API_SERVER_HOST}/g" /etc/nginx/conf.d/dolphinscheduler.conf
-sed -i "s/FRONTEND_API_SERVER_PORT/${FRONTEND_API_SERVER_PORT}/g" /etc/nginx/conf.d/dolphinscheduler.conf
 ```

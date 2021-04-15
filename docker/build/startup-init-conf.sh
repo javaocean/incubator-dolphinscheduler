@@ -38,9 +38,9 @@ export DATABASE_PARAMS=${DATABASE_PARAMS:-"characterEncoding=utf8"}
 #============================================================================
 export DOLPHINSCHEDULER_ENV_PATH=${DOLPHINSCHEDULER_ENV_PATH:-"/opt/dolphinscheduler/conf/env/dolphinscheduler_env.sh"}
 export DOLPHINSCHEDULER_DATA_BASEDIR_PATH=${DOLPHINSCHEDULER_DATA_BASEDIR_PATH:-"/tmp/dolphinscheduler"}
-export DOLPHINSCHEDULER_RESOURCE_STORAGE_TYPE=${DOLPHINSCHEDULER_RESOURCE_STORAGE_TYPE:-"HDFS"}
-export RESOURCE_UPLOAD_PATH=${RESOURCE_UPLOAD_PATH:-"/ds"}
-export DOLPHINSCHEDULER_FS_DEFAULTFS=${DOLPHINSCHEDULER_FS_DEFAULTFS:-"file:///data/dolphinscheduler"}
+export RESOURCE_STORAGE_TYPE=${RESOURCE_STORAGE_TYPE:-"HDFS"}
+export RESOURCE_UPLOAD_PATH=${RESOURCE_UPLOAD_PATH:-"/dolphinscheduler"}
+export FS_DEFAULT_FS=${FS_DEFAULT_FS:-"file:///"}
 export FS_S3A_ENDPOINT=${FS_S3A_ENDPOINT:-"s3.xxx.amazonaws.com"}
 export FS_S3A_ACCESS_KEY=${FS_S3A_ACCESS_KEY:-"xxxxxxx"}
 export FS_S3A_SECRET_KEY=${FS_S3A_SECRET_KEY:-"xxxxxxx"}
@@ -68,7 +68,6 @@ export MASTER_LISTEN_PORT=${MASTER_LISTEN_PORT:-"5678"}
 #============================================================================
 export WORKER_EXEC_THREADS=${WORKER_EXEC_THREADS:-"100"}
 export WORKER_HEARTBEAT_INTERVAL=${WORKER_HEARTBEAT_INTERVAL:-"10"}
-export WORKER_FETCH_TASK_NUM=${WORKER_FETCH_TASK_NUM:-"3"}
 export WORKER_MAX_CPULOAD_AVG=${WORKER_MAX_CPULOAD_AVG:-"100"}
 export WORKER_RESERVED_MEMORY=${WORKER_RESERVED_MEMORY:-"0.1"}
 export WORKER_LISTEN_PORT=${WORKER_LISTEN_PORT:-"1234"}
@@ -77,7 +76,7 @@ export WORKER_GROUP=${WORKER_GROUP:-"default"}
 #============================================================================
 # Alert Server
 #============================================================================
-# XLS FILE
+# xls file
 export XLS_FILE_PATH=${XLS_FILE_PATH:-"/tmp/xls"}
 # mail
 export MAIL_SERVER_HOST=${MAIL_SERVER_HOST:-""}
@@ -95,12 +94,6 @@ export ENTERPRISE_WECHAT_SECRET=${ENTERPRISE_WECHAT_SECRET:-""}
 export ENTERPRISE_WECHAT_AGENT_ID=${ENTERPRISE_WECHAT_AGENT_ID:-""}
 export ENTERPRISE_WECHAT_USERS=${ENTERPRISE_WECHAT_USERS:-""}
 
-#============================================================================
-# Frontend
-#============================================================================
-export FRONTEND_API_SERVER_HOST=${FRONTEND_API_SERVER_HOST:-"127.0.0.1"}
-export FRONTEND_API_SERVER_PORT=${FRONTEND_API_SERVER_PORT:-"12345"}
-
 echo "generate app config"
 ls ${DOLPHINSCHEDULER_HOME}/conf/ | grep ".tpl" | while read line; do
 eval "cat << EOF
@@ -108,7 +101,3 @@ $(cat ${DOLPHINSCHEDULER_HOME}/conf/${line})
 EOF
 " > ${DOLPHINSCHEDULER_HOME}/conf/${line%.*}
 done
-
-echo "generate nginx config"
-sed -i "s/FRONTEND_API_SERVER_HOST/${FRONTEND_API_SERVER_HOST}/g" /etc/nginx/conf.d/dolphinscheduler.conf
-sed -i "s/FRONTEND_API_SERVER_PORT/${FRONTEND_API_SERVER_PORT}/g" /etc/nginx/conf.d/dolphinscheduler.conf

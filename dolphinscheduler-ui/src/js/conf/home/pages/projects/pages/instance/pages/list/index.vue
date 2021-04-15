@@ -87,6 +87,7 @@
        * Query
        */
       _onQuery (o) {
+        this.searchParams.pageNo = 1
         this.searchParams = _.assign(this.searchParams, o)
         setUrlParams(this.searchParams)
         this._debounceGET()
@@ -219,8 +220,8 @@
           td:last-child {
             border-bottom:1px solid #ecf3ff;
           }
-          th:nth-last-child(2) {
-            padding-right: 260px;
+          th:nth-last-child(2),td:nth-last-child(2) {
+            padding-right: 240px;
           }
         }
       }

@@ -48,7 +48,7 @@ public class OSUtilsTest {
         double memoryUsage = OSUtils.memoryUsage();
         Assert.assertTrue(memoryUsage > 0.0f);
         double cpuUsage = OSUtils.cpuUsage();
-        Assert.assertTrue(cpuUsage > 0.0f);
+        Assert.assertTrue(cpuUsage >= 0.0f);
     }
 
     @Test
@@ -86,6 +86,12 @@ public class OSUtilsTest {
     public void getProcessID(){
         int processId = OSUtils.getProcessID();
         Assert.assertNotEquals(0, processId);
+    }
+    @Test
+    public void getAddr(){
+        Assert.assertEquals(OSUtils.getHost() + ":5678", OSUtils.getAddr(5678));
+        Assert.assertEquals("127.0.0.1:5678", OSUtils.getAddr("127.0.0.1", 5678));
+        Assert.assertEquals("localhost:1234", OSUtils.getAddr("localhost", 1234));
     }
     @Test
     public void getHost(){

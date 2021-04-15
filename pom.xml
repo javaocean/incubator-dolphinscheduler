@@ -19,7 +19,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.apache.dolphinscheduler</groupId>
     <artifactId>dolphinscheduler</artifactId>
-    <version>1.3.5-SNAPSHOT</version>
+    <version>1.3.6-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>${project.artifactId}</name>
     <url>http://dolphinscheduler.apache.org</url>
@@ -704,6 +704,7 @@
                         <include>**/api/enums/StatusTest.java</include>
                         <include>**/api/exceptions/ApiExceptionHandlerTest.java</include>
                         <include>**/api/exceptions/ServiceExceptionTest.java</include>
+                        <include>**/api/interceptor/LocaleChangeInterceptorTest.java</include>
                         <include>**/api/interceptor/LoginHandlerInterceptorTest.java</include>
                         <include>**/api/security/PasswordAuthenticatorTest.java</include>
                         <include>**/api/security/SecurityConfigTest.java</include>
@@ -772,6 +773,7 @@
                         <include>**/common/utils/TaskParametersUtilsTest.java</include>
                         <include>**/common/utils/HadoopUtilsTest.java</include>
                         <include>**/common/utils/HttpUtilsTest.java</include>
+                        <include>**/common/utils/HiveConfUtilsTest.java</include>
                         <include>**/common/ConstantsTest.java</include>
                         <include>**/common/utils/HadoopUtils.java</include>
                         <include>**/common/plugin/FilePluginManagerTest</include>
@@ -781,6 +783,7 @@
                         <include>**/dao/mapper/CommandMapperTest.java</include>
                         <include>**/dao/mapper/ConnectionFactoryTest.java</include>
                         <include>**/dao/mapper/DataSourceMapperTest.java</include>
+                        <include>**/dao/datasource/HiveDataSourceTest.java</include>
                         <include>**/remote/RemoveTaskLogResponseCommandTest.java</include>
                         <include>**/remote/RemoveTaskLogRequestCommandTest.java</include>
                         <include>**/remote/FastJsonSerializerTest.java</include>
@@ -793,18 +796,17 @@
                         <include>**/server/log/TaskLogFilterTest.java</include>
                         <include>**/server/log/WorkerLogFilterTest.java</include>
                         <include>**/server/master/consumer/TaskPriorityQueueConsumerTest.java</include>
-                        <include>**/server/master/runner/MasterTaskExecThreadTest.java</include>
-                        <include>**/server/worker/runner/TaskExecuteThreadTest.java</include>
-                        <include>**/server/master/dispatch/executor/NettyExecutorManagerTest.java</include>
+                        <!-- <include>**/server/master/runner/MasterTaskExecThreadTest.java</include>
+                        <include>**/server/master/dispatch/executor/NettyExecutorManagerTest.java</include> -->
                         <include>**/server/master/dispatch/host/assign/LowerWeightRoundRobinTest.java</include>
                         <include>**/server/master/dispatch/host/assign/RandomSelectorTest.java</include>
                         <include>**/server/master/dispatch/host/assign/RoundRobinSelectorTest.java</include>
                         <include>**/server/master/register/MasterRegistryTest.java</include>
                         <include>**/server/master/AlertManagerTest.java</include>
                         <include>**/server/master/MasterCommandTest.java</include>
-                        <include>**/server/master/DependentTaskTest.java</include>
+                        <!-- <include>**/server/master/DependentTaskTest.java</include>
                         <include>**/server/master/ConditionsTaskTest.java</include>
-                        <include>**/server/master/MasterExecThreadTest.java</include>
+                        <include>**/server/master/MasterExecThreadTest.java</include> -->
                         <include>**/server/master/ParamsTest.java</include>
                         <include>**/server/register/ZookeeperNodeManagerTest.java</include>
                         <include>**/server/utils/DataxUtilsTest.java</include>
@@ -813,7 +815,8 @@
                         <include>**/server/utils/ParamUtilsTest.java</include>
                         <include>**/server/utils/ProcessUtilsTest.java</include>
                         <include>**/server/utils/SparkArgsUtilsTest.java</include>
-                        <include>**/server/worker/processor/TaskCallbackServiceTest.java</include>
+                        <!-- <include>**/server/worker/processor/TaskCallbackServiceTest.java</include>
+                        <include>**/server/worker/runner/TaskExecuteThreadTest.java</include> -->
                         <include>**/server/worker/registry/WorkerRegistryTest.java</include>
                         <include>**/server/worker/shell/ShellCommandExecutorTest.java</include>
                         <include>**/server/worker/sql/SqlExecutorTest.java</include>
@@ -827,7 +830,6 @@
                         <include>**/service/zk/DefaultEnsembleProviderTest.java</include>
                         <include>**/service/zk/ZKServerTest.java</include>
                         <include>**/service/queue/TaskUpdateQueueTest.java</include>
-
                         <include>**/dao/mapper/DataSourceUserMapperTest.java</include>
                         <include>**/dao/mapper/ErrorCommandMapperTest.java</include>
                         <include>**/dao/mapper/ProcessDefinitionMapperTest.java</include>
@@ -852,9 +854,9 @@
                         <include>**/dao/upgrade/UpgradeDaoTest.java</include>
                         <include>**/plugin/model/AlertDataTest.java</include>
                         <include>**/plugin/model/AlertInfoTest.java</include>
-                        <include>**/plugin/utils/PropertyUtilsTest.java</include>
+                        <!-- <include>**/plugin/utils/PropertyUtilsTest.java</include> -->
                     </includes>
-                     <skip>true</skip>
+                    <skip>true</skip>
                 </configuration>
             </plugin>
 
