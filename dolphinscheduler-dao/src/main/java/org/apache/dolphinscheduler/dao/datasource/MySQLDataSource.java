@@ -14,60 +14,107 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.dao.datasource;
 
 import org.apache.dolphinscheduler.common.Constants;
+import org.apache.dolphinscheduler.common.enums.DbType;
+import org.apache.dolphinscheduler.common.utils.JSONUtils;
 import org.apache.dolphinscheduler.common.utils.StringUtils;
+
+import org.apache.commons.collections4.MapUtils;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
 
 /**
  * data source of mySQL
  */
 public class MySQLDataSource extends BaseDataSource {
 
-  private static final Logger logger = LoggerFactory.getLogger(MySQLDataSource.class);
+    private static final Logger logger = LoggerFactory.getLogger(MySQLDataSource.class);
 
-  /**
-   * gets the JDBC url for the data source connection
-   * @return
-   */
-  @Override
-  public String getJdbcUrl() {
-    String address = getAddress();
-    if (address.lastIndexOf("/") != (address.length() - 1)) {
-      address += "/";
-    }
-    String jdbcUrl = address + getDatabase();
-    if (StringUtils.isNotEmpty(getOther())) {
-      jdbcUrl += "?" + getOther();
-    }
-    return jdbcUrl;
-  }
+    private static final String ALLOW_LOAD_LOCAL_IN_FILE_NAME = "allowLoadLocalInfile";
 
-  /**
-   * test whether the data source can be connected successfully
-   * @throws Exception
-   */
-  @Override
-  public void isConnectable() throws Exception {
-    Connection con = null;
-    try {
-      Class.forName(Constants.COM_MYSQL_JDBC_DRIVER);
-      con = DriverManager.getConnection(getJdbcUrl(), getUser(), getPassword());
-    } finally {
-      if (con != null) {
-        try {
-          con.close();
-        } catch (SQLException e) {
-          logger.error("Mysql datasource try conn close conn error", e);
+    private static final String AUTO_DESERIALIZE = "autoDeserialize";
+
+    private static final String ALLOW_LOCAL_IN_FILE_NAME = "allowLocalInfile";
+
+    private static final String ALLOW_URL_IN_LOCAL_IN_FILE_NAME = "allowUrlInLocalInfile";
+
+    private static final String APPEND_PARAMS = "allowLoadLocalInfile=false&autoDeserialize=false&allowLocalInfile=false&allowUrlInLocalInfile=false";
+
+    private static boolean checkKeyIsLegitimate(String key) {
+        return !key.contains(ALLOW_LOAD_LOCAL_IN_FILE_NAME) && !key.contains(AUTO_DESERIALIZE) && !key.contains(ALLOW_LOCAL_IN_FILE_NAME) && !key.contains(ALLOW_URL_IN_LOCAL_IN_FILE_NAME);
+    }
+
+    /**
+     * gets the JDBC url for the data source connection
+     *
+     * @return jdbc url
+     */
+    @Override
+    public String driverClassSelector() {
+        return Constants.COM_MYSQL_JDBC_DRIVER;
+    }
+
+    /**
+     * @return db type
+     */
+    @Override
+    public DbType dbTypeSelector() {
+        return DbType.MYSQL;
+    }
+
+    public static Map<String, String> buildOtherParams(String other) {
+        if (StringUtils.isBlank(other)) {
+            return null;
         }
-      }
-    }
-  }
+        Map<String, String> paramMap = JSONUtils.toMap(other);
+        if (MapUtils.isEmpty(paramMap)) {
+            return null;
+        }
+        Map<String, String> newParamMap = new HashMap<>();
+        paramMap.forEach((k, v) -> {
+            if (!checkKeyIsLegitimate(k)) {
+                return;
+            }
+            newParamMap.put(k, v);
 
+        });
+        return newParamMap;
+    }
+
+    @Override
+    public String getUser() {
+        if (user.contains(AUTO_DESERIALIZE)) {
+            logger.warn("sensitive param : {} in username field is filtered", AUTO_DESERIALIZE);
+            user = user.replace(AUTO_DESERIALIZE, "");
+        }
+        logger.debug("username : {}", user);
+        return user;
+    }
+
+    @Override
+    protected String filterOther(String otherParams) {
+        if (StringUtils.isBlank(otherParams)) {
+            return APPEND_PARAMS;
+        }
+        char symbol = '&';
+        return otherParams + symbol + APPEND_PARAMS;
+    }
+
+    @Override
+    public String getPassword() {
+        // password need decode
+        password = super.getPassword();
+        if (password.contains(AUTO_DESERIALIZE)) {
+            logger.warn("sensitive param : {} in password field is filtered", AUTO_DESERIALIZE);
+            password = password.replace(AUTO_DESERIALIZE, "");
+        }
+        return password;
+    }
 }

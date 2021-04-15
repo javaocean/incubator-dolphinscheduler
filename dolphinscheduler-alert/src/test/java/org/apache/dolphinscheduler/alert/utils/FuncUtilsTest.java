@@ -17,14 +17,14 @@
 
 package org.apache.dolphinscheduler.alert.utils;
 
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FuncUtilsTest {
 
@@ -46,7 +46,7 @@ public class FuncUtilsTest {
         logger.info(result);
 
         //Expected result string
-        assertEquals(result, "user1|user2|user3");
+        assertEquals("user1|user2|user3", result);
 
         //Null list expected return null
         result = FuncUtils.mkString(null, split);

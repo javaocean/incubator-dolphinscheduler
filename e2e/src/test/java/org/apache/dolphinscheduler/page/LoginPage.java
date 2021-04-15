@@ -17,15 +17,15 @@
 package org.apache.dolphinscheduler.page;
 
 import org.apache.dolphinscheduler.common.PageCommon;
-import org.apache.dolphinscheduler.constant.TestConstant;
 import org.apache.dolphinscheduler.data.LoginData;
+import org.apache.dolphinscheduler.data.security.TenantManageData;
 import org.apache.dolphinscheduler.locator.LoginLocator;
-import org.apache.dolphinscheduler.util.RedisUtil;
+import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
 
-
-
 public class LoginPage extends PageCommon {
+    TenantManageData tenantManageData = new TenantManageData();
+
     /**
      * Unique constructor
      * @param driver driver
@@ -34,22 +34,27 @@ public class LoginPage extends PageCommon {
         super(driver);
     }
 
-
     /**
      * jump page
      */
-    public void jumpPage() {
-        System.out.println("jump login page");
+    public void jumpPageEnlish() {
+        System.out.println("jump to English login page");
         super.jumpPage(LoginData.URL);
+        Cookie cookie = new Cookie("language", "en_US", "/", null);
+        driver.manage().addCookie(cookie);
     }
 
+    public void jumpPageChinese() {
+        super.jumpPage(LoginData.URL);
+        Cookie cookie = new Cookie("language", "zh_CN", "/", null);
+        driver.manage().addCookie(cookie);
+    }
     /**
      * login
      *
      * @return Whether to enter the specified page after searching
      */
     public boolean login() throws InterruptedException {
-        System.out.println("LoginPage");
         // login data
         sendInput(LoginLocator.LOGIN_INPUT_USER, LoginData.USER);
         sendInput(LoginLocator.LOGIN_INPUT_PASSWORD, LoginData.PASSWORD);
@@ -60,6 +65,6 @@ public class LoginPage extends PageCommon {
         moveToElement(LoginLocator.LOGIN_BUTTON_MOVE);
 
         // Whether to enter the specified page after login
-        return ifTitleContains(LoginData.TENANT);
+        return ifTitleContains(tenantManageData.getTenantData("tenantTitle"));
     }
 }

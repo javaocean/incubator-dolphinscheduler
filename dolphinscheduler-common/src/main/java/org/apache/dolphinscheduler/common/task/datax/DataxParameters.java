@@ -14,18 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.common.task.datax;
+
+import org.apache.dolphinscheduler.common.enums.Flag;
+import org.apache.dolphinscheduler.common.process.ResourceInfo;
+import org.apache.dolphinscheduler.common.task.AbstractParameters;
+import org.apache.dolphinscheduler.common.utils.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import org.apache.commons.lang.StringUtils;
-import org.apache.dolphinscheduler.common.task.AbstractParameters;
 
 /**
  * DataX parameter
  */
 public class DataxParameters extends AbstractParameters {
+
+    /**
+     * if custom json config，eg  0, 1
+     */
+    private int customConfig;
+
+    /**
+     * if customConfig eq 1 ,then json is usable
+     */
+    private String json;
 
     /**
      * data source type，eg  MYSQL, POSTGRES ...
@@ -76,6 +89,32 @@ public class DataxParameters extends AbstractParameters {
      * speed record count
      */
     private int jobSpeedRecord;
+
+    /**
+     * Xms memory
+     */
+    private int xms;
+
+    /**
+     * Xmx memory
+     */
+    private int xmx;
+
+    public int getCustomConfig() {
+        return customConfig;
+    }
+
+    public void setCustomConfig(int customConfig) {
+        this.customConfig = customConfig;
+    }
+
+    public String getJson() {
+        return json;
+    }
+
+    public void setJson(String json) {
+        this.json = json;
+    }
 
     public String getDsType() {
         return dsType;
@@ -157,36 +196,56 @@ public class DataxParameters extends AbstractParameters {
         this.jobSpeedRecord = jobSpeedRecord;
     }
 
-    @Override
-    public boolean checkParameters() {
-        if (!(dataSource != 0
-                && dataTarget != 0
-                && StringUtils.isNotEmpty(sql)
-                && StringUtils.isNotEmpty(targetTable))) {
-            return false;
-        }
+    public int getXms() {
+        return xms;
+    }
 
-        return true;
+    public void setXms(int xms) {
+        this.xms = xms;
+    }
+
+    public int getXmx() {
+        return xmx;
+    }
+
+    public void setXmx(int xmx) {
+        this.xmx = xmx;
     }
 
     @Override
-    public List<String> getResourceFilesList() {
+    public boolean checkParameters() {
+        if (customConfig == Flag.NO.ordinal()) {
+            return dataSource != 0
+                    && dataTarget != 0
+                    && StringUtils.isNotEmpty(sql)
+                    && StringUtils.isNotEmpty(targetTable);
+        } else {
+            return StringUtils.isNotEmpty(json);
+        }
+    }
+
+    @Override
+    public List<ResourceInfo> getResourceFilesList() {
         return new ArrayList<>();
     }
 
     @Override
     public String toString() {
-        return "DataxParameters{" +
-                "dsType='" + dsType + '\'' +
-                ", dataSource=" + dataSource +
-                ", dtType='" + dtType + '\'' +
-                ", dataTarget=" + dataTarget +
-                ", sql='" + sql + '\'' +
-                ", targetTable='" + targetTable + '\'' +
-                ", preStatements=" + preStatements +
-                ", postStatements=" + postStatements +
-                ", jobSpeedByte=" + jobSpeedByte +
-                ", jobSpeedRecord=" + jobSpeedRecord +
-                '}';
+        return "DataxParameters{"
+                + "customConfig=" + customConfig
+                + ", json='" + json + '\''
+                + ", dsType='" + dsType + '\''
+                + ", dataSource=" + dataSource
+                + ", dtType='" + dtType + '\''
+                + ", dataTarget=" + dataTarget
+                + ", sql='" + sql + '\''
+                + ", targetTable='" + targetTable + '\''
+                + ", preStatements=" + preStatements
+                + ", postStatements=" + postStatements
+                + ", jobSpeedByte=" + jobSpeedByte
+                + ", jobSpeedRecord=" + jobSpeedRecord
+                + ", xms=" + xms
+                + ", xmx=" + xmx
+                + '}';
     }
 }

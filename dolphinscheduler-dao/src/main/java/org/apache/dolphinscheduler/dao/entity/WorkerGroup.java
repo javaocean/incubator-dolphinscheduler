@@ -14,31 +14,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.dolphinscheduler.dao.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+package org.apache.dolphinscheduler.dao.entity;
 
 import java.util.Date;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 /**
- * worker group for task running
+ * worker group
  */
 @TableName("t_ds_worker_group")
 public class WorkerGroup {
 
-    @TableId(value="id", type=IdType.AUTO)
+    @TableId(value = "id", type = IdType.AUTO)
     private int id;
 
     private String name;
 
-    private String ipList;
+    private String addrList;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date createTime;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date updateTime;
 
+    @TableField(exist = false)
+    private boolean systemDefault;
 
     public int getId() {
         return id;
@@ -48,12 +55,20 @@ public class WorkerGroup {
         this.id = id;
     }
 
-    public String getIpList() {
-        return ipList;
+    public String getName() {
+        return name;
     }
 
-    public void setIpList(String ipList) {
-        this.ipList = ipList;
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getAddrList() {
+        return addrList;
+    }
+
+    public void setAddrList(String addrList) {
+        this.addrList = addrList;
     }
 
     public Date getCreateTime() {
@@ -72,23 +87,24 @@ public class WorkerGroup {
         this.updateTime = updateTime;
     }
 
+    public boolean getSystemDefault() {
+        return systemDefault;
+    }
+
+    public void setSystemDefault(boolean systemDefault) {
+        this.systemDefault = systemDefault;
+    }
+
     @Override
     public String toString() {
-        return "Worker group model{" +
-                "id= " + id +
-                ",name= " + name +
-                ",ipList= " + ipList +
-                ",createTime= " + createTime +
-                ",updateTime= " + updateTime +
-
-                "}";
+        return "WorkerGroup{"
+                + "id= " + id
+                + ", name= " + name
+                + ", addrList= " + addrList
+                + ", createTime= " + createTime
+                + ", updateTime= " + updateTime
+                + ", systemDefault= " + systemDefault
+                + "}";
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
 }

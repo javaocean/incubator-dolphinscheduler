@@ -21,20 +21,19 @@
         <h2>
           <span>{{name}}</span>
         </h2>
-        <template v-show="isNoType">
+        <template v-if="isViewType">
           <template v-if="!msg">
             <div class="code-mirror-model">
               <textarea id="code-edit-mirror" name="code-edit-mirror"></textarea>
             </div>
             <div class="submit-c">
-              <x-button type="text" shape="circle" @click="close()" :disabled="disabled"> {{$t('Return')}} </x-button>
-              <x-button type="primary" shape="circle" :loading="spinnerLoading" @click="ok()">{{spinnerLoading ? 'Loading...' : $t('Save')}} </x-button>
+              <el-button type="text" @click="close()" :disabled="disabled" size="small"> {{$t('Return')}} </el-button>
+              <el-button type="primary" :loading="spinnerLoading" @click="ok()" round size="small">{{spinnerLoading ? 'Loading...' : $t('Save')}} </el-button>
             </div>
           </template>
           <m-no-data :msg="msg" v-if="msg"></m-no-data>
-
         </template>
-        <template v-if="!isNoType">
+        <template v-else>
           <m-no-type></m-no-type>
         </template>
       </div>
@@ -44,6 +43,7 @@
   </m-list-construction>
 </template>
 <script>
+  import i18n from '@/module/i18n'
   import _ from 'lodash'
   import { mapActions } from 'vuex'
   import { filtTypeArr } from '../_source/common'
@@ -63,7 +63,7 @@
     data () {
       return {
         name: '',
-        isNoType: true,
+        isViewType: true,
         isLoading: false,
         filtTypeArr: filtTypeArr,
         loadingIndex: 0,
@@ -78,30 +78,39 @@
     methods: {
       ...mapActions('resource', ['getViewResources', 'updateContent']),
       ok () {
-        this.spinnerLoading = true
-        this.updateContent({
-          id: this.$route.params.id,
-          content: editor.getValue()
-        }).then(res => {
-          this.$message.success(res.msg)
-          setTimeout(() => {
+        if (this._validation()) {
+          this.spinnerLoading = true
+          this.updateContent({
+            id: this.$route.params.id,
+            content: editor.getValue()
+          }).then(res => {
+            this.$message.success(res.msg)
+            setTimeout(() => {
+              this.spinnerLoading = false
+              this.close()
+            }, 800)
+          }).catch(e => {
+            this.$message.error(e.msg || '')
             this.spinnerLoading = false
-            this.close()
-          }, 800)
-        }).catch(e => {
-          this.$message.error(e.msg || '')
-          this.spinnerLoading = false
-        })
+          })
+        }
+      },
+      _validation () {
+        if (editor.doc.size > 3000) {
+          this.$message.warning(`${i18n.$t('Resource content cannot exceed 3000 lines')}`)
+          return false
+        }
+        return true
       },
       close () {
-        this.$router.push({ name: 'file' })
+        this.$router.go(-1)
       },
       _getViewResources () {
         this.isLoading = true
         this.getViewResources({
           id: this.$route.params.id,
           skipLineNum: 0,
-          limit: 2000
+          limit: 3000
         }).then(res => {
           this.name = res.data.alias.split('.')[0]
           if (!res.data) {
@@ -155,10 +164,10 @@
       let a = fileName.substring(i, fileName.length)
       this.mode = handlerSuffix[a]
       this.size = bytesToSize(parseInt(fileSize))
-      this.isNoType = _.includes(this.filtTypeArr, _.trimStart(a, '.'))
+      this.isViewType = _.includes(this.filtTypeArr, _.trimStart(a, '.'))
     },
     mounted () {
-      if (this.isNoType) {
+      if (this.isViewType) {
         // get data
         this._getViewResources()
       }

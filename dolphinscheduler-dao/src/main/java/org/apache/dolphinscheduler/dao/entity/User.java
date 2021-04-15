@@ -17,6 +17,7 @@
 package org.apache.dolphinscheduler.dao.entity;
 
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.dolphinscheduler.common.enums.UserType;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -68,16 +69,15 @@ public class  User {
     private int tenantId;
 
     /**
+     * user state
+     */
+    private int state;
+
+    /**
      * tenant code
      */
     @TableField(exist = false)
     private String tenantCode;
-
-    /**
-     * tenant name
-     */
-    @TableField(exist = false)
-    private String tenantName;
 
     /**
      * queue name
@@ -99,11 +99,13 @@ public class  User {
     /**
      * create time
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss",timezone="GMT+8")
     private Date createTime;
 
     /**
      * update time
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss",timezone="GMT+8")
     private Date updateTime;
 
     public int getId() {
@@ -195,14 +197,6 @@ public class  User {
         this.alertGroup = alertGroup;
     }
 
-    public String getTenantName() {
-        return tenantName;
-    }
-
-    public void setTenantName(String tenantName) {
-        this.tenantName = tenantName;
-    }
-
     public String getTenantCode() {
         return tenantCode;
     }
@@ -217,6 +211,14 @@ public class  User {
 
     public void setQueue(String queue) {
         this.queue = queue;
+    }
+
+    public int getState() {
+        return state;
+    }
+
+    public void setState(int state) {
+        this.state = state;
     }
 
     @Override
@@ -254,8 +256,8 @@ public class  User {
                 ", phone='" + phone + '\'' +
                 ", userType=" + userType +
                 ", tenantId=" + tenantId +
+                ", state=" + state +
                 ", tenantCode='" + tenantCode + '\'' +
-                ", tenantName='" + tenantName + '\'' +
                 ", queueName='" + queueName + '\'' +
                 ", alertGroup='" + alertGroup + '\'' +
                 ", queue='" + queue + '\'' +

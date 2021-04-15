@@ -16,5 +16,6 @@
  */
 export default {
   workerGroupsListAll: [],
-  tenantAllList : []
+  alarmGroupsListAll: [],
+  tenantAllList: []
 }

@@ -14,27 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.dao.mapper;
 
-
+import org.apache.dolphinscheduler.common.utils.BooleanUtils;
 import org.apache.dolphinscheduler.dao.entity.Queue;
+
+import java.util.Date;
+import java.util.List;
+
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
-import java.util.List;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
+@Transactional
+@Rollback(true)
 public class QueueMapperTest {
 
-    
+
     @Autowired
     QueueMapper queueMapper;
 
@@ -43,7 +51,7 @@ public class QueueMapperTest {
      * insert
      * @return Queue
      */
-    private Queue insertOne(){
+    private Queue insertOne() {
         //insertOne
         Queue queue = new Queue();
         queue.setQueueName("queue");
@@ -58,24 +66,23 @@ public class QueueMapperTest {
      * test update
      */
     @Test
-    public void testUpdate(){
+    public void testUpdate() {
         //insertOne
         Queue queue = insertOne();
         queue.setCreateTime(new Date());
         //update
         int update = queueMapper.updateById(queue);
-        Assert.assertEquals(update, 1);
-        queueMapper.deleteById(queue.getId());
+        Assert.assertEquals(1, update);
     }
 
     /**
      * test delete
      */
     @Test
-    public void testDelete(){
+    public void testDelete() {
         Queue queue = insertOne();
         int delete = queueMapper.deleteById(queue.getId());
-        Assert.assertEquals(delete, 1);
+        Assert.assertEquals(1, delete);
     }
 
     /**
@@ -87,7 +94,6 @@ public class QueueMapperTest {
         //query
         List<Queue> queues = queueMapper.selectList(null);
         Assert.assertNotEquals(queues.size(), 0);
-        queueMapper.deleteById(queue.getId());
     }
 
     /**
@@ -106,7 +112,6 @@ public class QueueMapperTest {
         queueIPage= queueMapper.queryQueuePaging(page,
                 queue.getQueueName());
         Assert.assertNotEquals(queueIPage.getTotal(), 0);
-        queueMapper.deleteById(queue.getId());
     }
 
     /**
@@ -121,6 +126,14 @@ public class QueueMapperTest {
 
         queues = queueMapper.queryAllQueueList(null, queue.getQueueName());
         Assert.assertNotEquals(queues.size(), 0);
-        queueMapper.deleteById(queue.getId());
+    }
+
+    @Test
+    public void existQueue() {
+        Assert.assertNull(queueMapper.existQueue("queue", null));
+        Assert.assertNull(queueMapper.existQueue(null, "queue"));
+        Queue queue = insertOne();
+        Assert.assertTrue(BooleanUtils.isTrue(queueMapper.existQueue(queue.getQueue(), null)));
+        Assert.assertTrue(BooleanUtils.isTrue(queueMapper.existQueue(null, queue.getQueueName())));
     }
 }

@@ -19,28 +19,43 @@
     <template slot="conditions">
       <m-conditions @on-conditions="_onConditions">
         <template slot="button-group">
-          <x-button type="ghost" size="small" @click="_create('')">{{$t('Create token')}}</x-button>
+          <el-button size="mini" @click="_create('')">{{$t('Create token')}}</el-button>
+          <el-dialog
+            :title="item ? $t('Edit token') : $t('Create token')"
+            v-if="createTokenDialog"
+            :visible.sync="createTokenDialog"
+            width="auto">
+            <m-create-token :item="item" @onUpdate="onUpdate" @close="close"></m-create-token>
+          </el-dialog>
         </template>
       </m-conditions>
     </template>
     <template slot="content">
       <template v-if="tokenList.length || total>0">
-        <m-list 
+        <m-list
                 @on-update="_onUpdate"
                 @on-edit="_onEdit"
                 :token-list="tokenList"
                 :page-no="searchParams.pageNo"
                 :page-size="searchParams.pageSize">
-
         </m-list>
         <div class="page-box">
-          <x-page :current="parseInt(searchParams.pageNo)" :total="total" :page-size="searchParams.pageSize" show-elevator @on-change="_page" show-sizer :page-size-options="[10,30,50]" @on-size-change="_pageSize"></x-page>
+          <el-pagination
+            background
+            @current-change="_page"
+            @size-change="_pageSize"
+            :page-size="searchParams.pageSize"
+            :current-page.sync="searchParams.pageNo"
+            :page-sizes="[10, 30, 50]"
+            layout="sizes, prev, pager, next, jumper"
+            :total="total">
+          </el-pagination>
         </div>
       </template>
       <template v-if="!tokenList.length && total<=0">
         <m-no-data></m-no-data>
       </template>
-      <m-spin :is-spin="isLoading"></m-spin>
+      <m-spin :is-spin="isLoading" :is-left="isLeft"></m-spin>
     </template>
   </m-list-construction>
 </template>
@@ -53,7 +68,6 @@
   import mNoData from '@/module/components/noData/noData'
   import listUrlParamHandle from '@/module/mixin/listUrlParamHandle'
   import mConditions from '@/module/components/conditions/conditions'
-  import mSecondaryMenu from '@/module/components/secondaryMenu/secondaryMenu'
   import mListConstruction from '@/module/components/listConstruction/listConstruction'
 
   export default {
@@ -67,7 +81,9 @@
           pageSize: 10,
           pageNo: 1,
           searchVal: ''
-        }
+        },
+        isLeft: true,
+        createTokenDialog: false
       }
     },
     mixins: [listUrlParamHandle],
@@ -94,36 +110,28 @@
         this._debounceGET()
       },
       _create (item) {
-        let self = this
-        let modal = this.$modal.dialog({
-          closable: false,
-          showMask: true,
-          escClose: true,
-          className: 'v-modal-custom',
-          transitionName: 'opacityp',
-          render (h) {
-            return h(mCreateToken, {
-              on: {
-                onUpdate () {
-                  self._debounceGET('false')
-                  modal.remove()
-                },
-                close () {
-                  modal.remove()
-                }
-              },
-              props: {
-                item: item
-              }
-            })
-          }
-        })
+        this.item = item
+        this.createTokenDialog = true
       },
+      onUpdate () {
+        this._debounceGET('false')
+        this.createTokenDialog = false
+      },
+
+      close () {
+        this.createTokenDialog = false
+      },
+
       _getList (flag) {
+        if (sessionStorage.getItem('isLeft') === 0) {
+          this.isLeft = false
+        } else {
+          this.isLeft = true
+        }
         this.isLoading = !flag
         this.getTokenListP(this.searchParams).then(res => {
-          if(this.searchParams.pageNo>1 && res.totalList.length == 0) {
-            this.searchParams.pageNo = this.searchParams.pageNo -1
+          if (this.searchParams.pageNo > 1 && res.totalList.length === 0) {
+            this.searchParams.pageNo = this.searchParams.pageNo - 1
           } else {
             this.tokenList = []
             this.tokenList = res.totalList
@@ -145,8 +153,10 @@
     created () {
     },
     mounted () {
-      this.$modal.destroy()
     },
-    components: { mSecondaryMenu, mList, mListConstruction, mConditions, mSpin, mNoData }
+    beforeDestroy () {
+      sessionStorage.setItem('isLeft', 1)
+    },
+    components: { mList, mListConstruction, mConditions, mSpin, mNoData, mCreateToken }
   }
 </script>

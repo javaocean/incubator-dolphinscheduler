@@ -21,14 +21,14 @@
       <a href="javascript:" class="tog-open" @click="_toggleMenu" v-if="isTogHide"></a>
     </div>
     <div class="leven-1" v-for="(item,$index) in menuList" :key="$index">
-      <div v-if="item.disabled">
+      <div v-if="item.enabled">
         <template v-if="item.path">
           <router-link :to="{ name: item.path}">
             <div class="name" @click="_toggleSubMenu(item)">
               <a href="javascript:">
                 <em class="fa icon" :class="item.icon"></em>
                 <span>{{item.name}}</span>
-                <em class="fa angle" :class="item.isOpen ? 'ans-icon-arrow-down' : 'ans-icon-arrow-right'" v-if="item.children.length"></em>
+                <em class="fa angle" :class="item.isOpen ? 'el-icon-arrow-down' : 'el-icon-arrow-right'" v-if="item.children.length"></em>
               </a>
             </div>
           </router-link>
@@ -38,13 +38,13 @@
             <a href="javascript:">
               <em class="fa icon" :class="item.icon"></em>
               <span>{{item.name}}</span>
-              <em class="fa angle" :class="item.isOpen ? 'ans-icon-arrow-down' : 'ans-icon-arrow-right'" v-if="item.children.length"></em>
+              <em class="fa angle" :class="item.isOpen ? 'el-icon-arrow-down' : 'el-icon-arrow-right'" v-if="item.children.length"></em>
             </a>
           </div>
         </template>
         <ul v-if="item.isOpen && item.children.length">
           <template v-for="(el,index) in item.children">
-            <router-link :to="{ name: el.path}" tag="li" active-class="active" v-if="el.disabled" :key="index">
+            <router-link :to="{ name: el.path}" tag="li" active-class="active" v-if="el.enabled" :key="index">
               <span>{{el.name}}</span>
             </router-link>
           </template>
@@ -63,7 +63,8 @@
         menuList: menu(this.type),
         index: 0,
         id: this.$route.params.id,
-        isTogHide: false
+        isTogHide: false,
+        isLeft: true
       }
     },
     props: {
@@ -82,6 +83,11 @@
       },
       _toggleMenu () {
         this.isTogHide = !this.isTogHide
+        if (this.isTogHide) {
+          sessionStorage.setItem('isLeft', 0)
+        } else {
+          sessionStorage.setItem('isLeft', 1)
+        }
       }
     },
     mounted () {
@@ -150,7 +156,7 @@
           >.angle {
             position: absolute;
             right: 12px;
-            top: 3px;
+            top: 12px;
           }
 
         }

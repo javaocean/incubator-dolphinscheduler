@@ -43,8 +43,8 @@
     props: {},
     methods: {
       ...mapMutations('dag', ['setIsDetails', 'resetParams']),
-      ...mapActions('dag', ['getProcessList','getProjectList', 'getResourcesList', 'getInstancedetail']),
-      ...mapActions('security', ['getTenantList','getWorkerGroupsAll']),
+      ...mapActions('dag', ['getProcessList', 'getProjectList', 'getResourcesList', 'getInstancedetail', 'getResourcesListJar']),
+      ...mapActions('security', ['getTenantList', 'getWorkerGroupsAll', 'getAlarmGroupsAll']),
       /**
        * init
        */
@@ -62,8 +62,12 @@
           this.getProjectList(),
           // get resources
           this.getResourcesList(),
+          // get jar
+          this.getResourcesListJar(),
           // get worker group list
           this.getWorkerGroupsAll(),
+          // get alarm group list
+          this.getAlarmGroupsAll(),
           this.getTenantList()
         ]).then((data) => {
           let item = data[0]
@@ -99,7 +103,7 @@
       }
     },
     watch: {
-      '$route': {
+      $route: {
         deep: true,
         handler () {
           this.init()

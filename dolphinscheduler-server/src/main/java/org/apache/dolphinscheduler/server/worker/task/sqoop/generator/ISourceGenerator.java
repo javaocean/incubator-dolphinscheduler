@@ -14,9 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.server.worker.task.sqoop.generator;
 
 import org.apache.dolphinscheduler.common.task.sqoop.SqoopParameters;
+import org.apache.dolphinscheduler.server.entity.TaskExecutionContext;
 
 /**
  * Source Generator Interface
@@ -25,8 +27,10 @@ public interface ISourceGenerator {
 
     /**
      * generate the source script
-     * @param sqoopParameters sqoop params
-     * @return
+     *
+     * @param sqoopParameters      sqoopParameters
+     * @param taskExecutionContext taskExecutionContext
+     * @return source script
      */
-    String generate(SqoopParameters sqoopParameters);
+    String generate(SqoopParameters sqoopParameters, TaskExecutionContext taskExecutionContext);
 }

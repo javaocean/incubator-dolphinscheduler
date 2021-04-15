@@ -20,33 +20,31 @@
       <ul>
         <li>
           <div class="update-pbx">
-            <x-input
+            <el-input
                     type="input"
                     size="small"
                     v-model="udfName"
                     :disabled="progress !== 0"
-                    style="width: 268px"
-                    :placeholder="$t('Please enter resource name')"
-                    autocomplete="off">
-            </x-input>
+                    style="width: 535px"
+                    :placeholder="$t('Please enter name')">
+            </el-input>
             <div class="p1" style="position: absolute;">
-              <input name="file" id="file" type="file" class="file-update" v-if="!progress">
-              <x-button type="dashed" size="small" :disabled="progress !== 0"> {{$t('Upload')}} </x-button>
+              <input ref="file" name="file" type="file" class="file-update" @change="_onChange" v-if="!progress">
+              <el-button type="dashed" size="small" :disabled="progress !== 0">{{$t('Upload')}}<em class="el-icon-upload"></em></el-button>
             </div>
           </div>
         </li>
         <li>
-          <x-input
+          <el-input
                   type="textarea"
                   size="small"
                   v-model="udfDesc"
                   :disabled="progress !== 0"
-                  :placeholder="$t('Please enter description')"
-                  autocomplete="off">
-          </x-input>
+                  :placeholder="$t('Please enter description')">
+          </el-input>
         </li>
         <li style="margin-top: -4px;margin-bottom: 8px;">
-          <x-button type="success" size="xsmall" long @click="_ok" :loading="spinnerLoading">{{spinnerLoading ? `Loading... (${progress}%)` : $t('Upload UDF Resources')}}</x-button>
+          <el-button type="success" size="mini" @click="_ok" :loading="spinnerLoading">{{spinnerLoading ? `Loading... (${progress}%)` : $t('Upload UDF Resources')}}</el-button>
         </li>
       </ul>
     </div>
@@ -66,7 +64,9 @@
         udfDesc: '',
         file: '',
         progress: 0,
-        spinnerLoading: false
+        spinnerLoading: false,
+        pid: null,
+        currentDir: ''
       }
     },
     props: {
@@ -77,6 +77,10 @@
        * validation
        */
       _validation () {
+        if (!this.currentDir) {
+          this.$message.warning(`${i18n.$t('Please select UDF resources directory')}`)
+          return false
+        }
         if (!this.udfName) {
           this.$message.warning(`${i18n.$t('Please enter file name')}`)
           return false
@@ -90,7 +94,7 @@
       _verifyName () {
         return new Promise((resolve, reject) => {
           this.store.dispatch('resource/resourceVerifyName', {
-            name: this.udfName,
+            fullName: '/' + this.currentDir + '/' + this.udfName,
             type: 'UDF'
           }).then(res => {
             resolve()
@@ -100,25 +104,33 @@
           })
         })
       },
+      receivedValue (pid, name) {
+        this.pid = pid
+        this.currentDir = name
+      },
       _formDataUpdate () {
         let self = this
         let formData = new FormData()
         formData.append('file', this.file)
         formData.append('type', 'UDF')
+        formData.append('pid', this.pid)
+        formData.append('currentDir', this.currentDir)
         formData.append('name', this.udfName)
         formData.append('description', this.udfDesc)
         this.spinnerLoading = true
         this.$emit('on-update-present', false)
-        io.post(`resources/create`, res => {
+        io.post('resources/create', res => {
           this.$message.success(res.msg)
           this.spinnerLoading = false
           this.progress = 0
           this.$emit('on-update', res.data)
+          this.reset()
         }, e => {
           this.spinnerLoading = false
           this.progress = 0
           this.$message.error(e.msg || '')
           this.$emit('on-update', e)
+          this.reset()
         }, {
           data: formData,
           emulateJSON: false,
@@ -138,26 +150,23 @@
             this._formDataUpdate()
           })
         }
-      }
-    },
-    watch: {},
-    created () {
-    },
-    mounted () {
-      $('#file').change(() => {
-        let file = $('#file')[0].files[0]
+      },
+      reset () {
+        this.udfName = ''
+        this.udfDesc = ''
+        this.file = ''
+        this.progress = 0
+        this.spinnerLoading = false
+        this.pid = null
+        this.currentDir = ''
+      },
+      _onChange () {
+        let file = this.$refs.file.files[0]
         this.file = file
         this.udfName = file.name
-      })
-    },
-    updated () {
-    },
-    beforeDestroy () {
-    },
-    destroyed () {
-    },
-    computed: {},
-    components: {}
+        this.$refs.file.value = null
+      }
+    }
   }
 </script>
 

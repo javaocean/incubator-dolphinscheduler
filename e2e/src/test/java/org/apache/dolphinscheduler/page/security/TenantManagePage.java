@@ -17,15 +17,13 @@
 package org.apache.dolphinscheduler.page.security;
 
 import org.apache.dolphinscheduler.common.PageCommon;
-import org.apache.dolphinscheduler.constant.TestConstant;
-import org.apache.dolphinscheduler.data.LoginData;
 import org.apache.dolphinscheduler.data.security.TenantManageData;
-import org.apache.dolphinscheduler.locator.LoginLocator;
 import org.apache.dolphinscheduler.locator.security.TenantManageLocator;
-import org.apache.dolphinscheduler.util.RedisUtil;
 import org.openqa.selenium.WebDriver;
 
 public class TenantManagePage extends PageCommon {
+    TenantManageData tenantManageData = new TenantManageData();
+
     /**
      * Unique constructor
      * @param driver driver
@@ -34,36 +32,49 @@ public class TenantManagePage extends PageCommon {
         super(driver);
     }
 
-
     /**
-     * jump page
+     * jump security page
+     *
+     * @return Whether to enter the specified page after create tenant
      */
-    public void jumpPage() {
-        System.out.println("jump tenant page");
-        super.jumpPage(TenantManageData.TENANAT_URL);
+    public boolean jumpSecurity() throws InterruptedException {
+        clickTopElement(TenantManageLocator.SECURITY_CENTER);
+        return ifTitleContains(tenantManageData.getTenantData("tenantTitle"));
     }
 
     /**
      * createTenant
      *
-     * @return Whether to enter the specified page after creat tenant
+     * @return Whether to enter the specified page after create tenant
      */
     public boolean createTenant() throws InterruptedException {
-        Thread.sleep(TestConstant.ONE_THOUSANG);
+        clickButton(TenantManageLocator.TENANT_MANAGE);
 
         //create tenant
         clickButton(TenantManageLocator.CREATE_TENANT_BUTTON);
 
         // tenant data
-        sendInput(TenantManageLocator.TENANT_INPUT_CODE, TenantManageData.TENANAT_CODE);
-        sendInput(TenantManageLocator.TENANT_INPUT_NAME, TenantManageData.TENANAT_NAME);
-        sendInput(TenantManageLocator.QUEUE, TenantManageData.QUEUE);
-        sendInput(TenantManageLocator.DESCRIPTION, TenantManageData.DESCRIPTION);
+        sendInput(TenantManageLocator.TENANT_INPUT_CODE, tenantManageData.getTenantData("tenantCode"));
+        sendInput(TenantManageLocator.QUEUE, tenantManageData.getTenantData("queue"));
+        sendInput(TenantManageLocator.DESCRIPTION, tenantManageData.getTenantData("description"));
 
         // click  button
         clickButton(TenantManageLocator.SUBMIT_BUTTON);
 
         // Whether to enter the specified page after submit
-        return ifTitleContains(TenantManageData.TENANAT_MANAGE);
+        return ifTextExists(TenantManageLocator.TENANT_CODE_FIRST, tenantManageData.getTenantData("tenantCode"));
+    }
+
+    public boolean deleteTenant() throws InterruptedException {
+        clickElement(TenantManageLocator.TENANT_MANAGE);
+
+        // click delete button
+        clickButton(TenantManageLocator.DELETE_TENANT_BUTTON);
+
+        //click confirm delete button
+        clickButton(TenantManageLocator.CONFIRM_DELETE_TENANT_BUTTON);
+
+        // Whether to enter the specified page after submit
+        return ifTitleContains(tenantManageData.getTenantData("tenantTitle"));
     }
 }

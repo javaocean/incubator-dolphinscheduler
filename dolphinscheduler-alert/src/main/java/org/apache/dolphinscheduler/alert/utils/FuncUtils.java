@@ -14,15 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.alert.utils;
 
 import org.apache.dolphinscheduler.common.utils.StringUtils;
 
 public class FuncUtils {
 
-    static public String mkString(Iterable<String> list, String split) {
+    private FuncUtils() {
+        throw new IllegalStateException(FuncUtils.class.getName());
+    }
 
-        if (null == list || StringUtils.isEmpty(split)){
+    public static String mkString(Iterable<String> list, String split) {
+
+        if (null == list || StringUtils.isEmpty(split)) {
             return null;
         }
 

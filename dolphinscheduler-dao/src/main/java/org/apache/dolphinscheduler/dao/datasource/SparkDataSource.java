@@ -14,67 +14,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.dao.datasource;
 
 import org.apache.dolphinscheduler.common.Constants;
-import org.apache.dolphinscheduler.common.utils.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.dolphinscheduler.common.enums.DbType;
+import org.apache.dolphinscheduler.common.utils.CommonUtils;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
 
 /**
  * data source of spark
  */
 public class SparkDataSource extends BaseDataSource {
 
-  private static final Logger logger = LoggerFactory.getLogger(SparkDataSource.class);
-
-  /**
-   * gets the JDBC url for the data source connection
-   * @return
-   */
-  @Override
-  public String getJdbcUrl() {
-    String jdbcUrl = getAddress();
-    if (jdbcUrl.lastIndexOf("/") != (jdbcUrl.length() - 1)) {
-      jdbcUrl += "/";
+    /**
+     * gets the JDBC url for the data source connection
+     * @return jdbc url
+     */
+    @Override
+    public String driverClassSelector() {
+        return Constants.ORG_APACHE_HIVE_JDBC_HIVE_DRIVER;
     }
 
-    jdbcUrl += getDatabase();
-
-    if (StringUtils.isNotEmpty(getPrincipal())){
-      jdbcUrl += ";principal=" + getPrincipal();
+    /**
+     * @return db type
+     */
+    @Override
+    public DbType dbTypeSelector() {
+        return DbType.SPARK;
     }
 
-    if (StringUtils.isNotEmpty(getOther())) {
-      jdbcUrl += ";" + getOther();
+    /**
+     * the data source test connection
+     * @return Connection Connection
+     * @throws Exception Exception
+     */
+    @Override
+    public Connection getConnection() throws Exception {
+        CommonUtils.loadKerberosConf(getJavaSecurityKrb5Conf(), getLoginUserKeytabUsername(), getLoginUserKeytabPath());
+        return super.getConnection();
     }
-
-    return jdbcUrl;
-  }
-
-  /**
-   * test whether the data source can be connected successfully
-   * @throws Exception
-   */
-  @Override
-  public void isConnectable() throws Exception {
-    Connection con = null;
-    try {
-      Class.forName(Constants.ORG_APACHE_HIVE_JDBC_HIVE_DRIVER);
-      con = DriverManager.getConnection(getJdbcUrl(), getUser(), "");
-    } finally {
-      if (con != null) {
-        try {
-          con.close();
-        } catch (SQLException e) {
-          logger.error("Spark datasource try conn close conn error", e);
-        }
-      }
-    }
-
-  }
 }

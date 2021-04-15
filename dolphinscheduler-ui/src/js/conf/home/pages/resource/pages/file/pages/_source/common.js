@@ -18,6 +18,6 @@
 /**
  * Create file type
  */
-let filtTypeArr = ['txt', 'log', 'sh', 'conf', 'cfg', 'py', 'java', 'sql', 'xml', 'hql', 'properties']
+const filtTypeArr = ['txt', 'log', 'sh', 'bat', 'conf', 'cfg', 'py', 'java', 'sql', 'xml', 'hql', 'properties', 'json', 'yml', 'yaml', 'ini', 'js']
 
 export { filtTypeArr }

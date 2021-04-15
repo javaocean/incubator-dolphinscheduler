@@ -14,26 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.dao.datasource;
 
 import org.apache.dolphinscheduler.common.Constants;
+import org.apache.dolphinscheduler.common.enums.DbType;
 import org.apache.dolphinscheduler.common.utils.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
 
 /**
  * data source of SQL Server
  */
 public class SQLServerDataSource extends BaseDataSource {
-    private static final Logger logger = LoggerFactory.getLogger(SQLServerDataSource.class);
 
     /**
      * gets the JDBC url for the data source connection
-     * @return
+     * @return jdbc url
      */
     @Override
     public String getJdbcUrl() {
@@ -48,24 +43,18 @@ public class SQLServerDataSource extends BaseDataSource {
     }
 
     /**
-     * test whether the data source can be connected successfully
-     * @throws Exception
-     */
+    * @return driver class
+    */
     @Override
-    public void isConnectable() throws Exception {
-        Connection con = null;
-        try {
-            Class.forName(Constants.COM_SQLSERVER_JDBC_DRIVER);
-            con = DriverManager.getConnection(getJdbcUrl(), getUser(), getPassword());
-        } finally {
-            if (con != null) {
-                try {
-                    con.close();
-                } catch (SQLException e) {
-                    logger.error("SQL Server datasource try conn close conn error", e);
-                }
-            }
-        }
+    public String driverClassSelector() {
+        return Constants.COM_SQLSERVER_JDBC_DRIVER;
+    }
 
+    /**
+    * @return db type
+    */
+    @Override
+    public DbType dbTypeSelector() {
+        return DbType.SQLSERVER;
     }
 }

@@ -14,32 +14,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.api.controller;
 
+import static org.apache.dolphinscheduler.api.enums.Status.LIST_MASTERS_ERROR;
+import static org.apache.dolphinscheduler.api.enums.Status.LIST_WORKERS_ERROR;
+import static org.apache.dolphinscheduler.api.enums.Status.QUERY_DATABASE_STATE_ERROR;
+import static org.apache.dolphinscheduler.api.enums.Status.QUERY_ZOOKEEPER_STATE_ERROR;
 
+import org.apache.dolphinscheduler.api.exceptions.ApiException;
 import org.apache.dolphinscheduler.api.service.MonitorService;
 import org.apache.dolphinscheduler.api.utils.Result;
 import org.apache.dolphinscheduler.common.Constants;
 import org.apache.dolphinscheduler.dao.entity.User;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
 import springfox.documentation.annotations.ApiIgnore;
 
-import java.util.Map;
-
-import static org.apache.dolphinscheduler.api.enums.Status.*;
 /**
  * monitor controller
  */
-@Api(tags = "MONITOR_TAG", position = 1)
+@Api(tags = "MONITOR_TAG")
 @RestController
 @RequestMapping("/monitor")
-public class MonitorController extends BaseController{
+public class MonitorController extends BaseController {
 
     private static final Logger logger = LoggerFactory.getLogger(MonitorController.class);
 
@@ -48,84 +59,67 @@ public class MonitorController extends BaseController{
 
     /**
      * master list
+     *
      * @param loginUser login user
      * @return master list
      */
-    @ApiOperation(value = "listMaster", notes= "MASTER_LIST_NOTES")
+    @ApiOperation(value = "listMaster", notes = "MASTER_LIST_NOTES")
     @GetMapping(value = "/master/list")
     @ResponseStatus(HttpStatus.OK)
+    @ApiException(LIST_MASTERS_ERROR)
     public Result listMaster(@ApiIgnore @RequestAttribute(value = Constants.SESSION_USER) User loginUser) {
         logger.info("login user: {}, query all master", loginUser.getUserName());
-        try{
-            logger.info("list master, user:{}", loginUser.getUserName());
-            Map<String, Object> result = monitorService.queryMaster(loginUser);
-            return returnDataList(result);
-        }catch (Exception e){
-            logger.error(LIST_MASTERS_ERROR.getMsg(),e);
-            return error(LIST_MASTERS_ERROR.getCode(),
-                    LIST_MASTERS_ERROR.getMsg());
-        }
+        logger.info("list master, user:{}", loginUser.getUserName());
+        Map<String, Object> result = monitorService.queryMaster(loginUser);
+        return returnDataList(result);
     }
 
     /**
      * worker list
+     *
      * @param loginUser login user
      * @return worker information list
      */
-    @ApiOperation(value = "listWorker", notes= "WORKER_LIST_NOTES")
+    @ApiOperation(value = "listWorker", notes = "WORKER_LIST_NOTES")
     @GetMapping(value = "/worker/list")
     @ResponseStatus(HttpStatus.OK)
+    @ApiException(LIST_WORKERS_ERROR)
     public Result listWorker(@ApiIgnore @RequestAttribute(value = Constants.SESSION_USER) User loginUser) {
         logger.info("login user: {}, query all workers", loginUser.getUserName());
-        try{
-            Map<String, Object> result = monitorService.queryWorker(loginUser);
-            return returnDataList(result);
-        }catch (Exception e){
-            logger.error(LIST_WORKERS_ERROR.getMsg(),e);
-            return error(LIST_WORKERS_ERROR.getCode(),
-                    LIST_WORKERS_ERROR.getMsg());
-        }
+        Map<String, Object> result = monitorService.queryWorker(loginUser);
+        return returnDataList(result);
     }
 
     /**
      * query database state
+     *
      * @param loginUser login user
      * @return data base state
      */
-    @ApiOperation(value = "queryDatabaseState", notes= "QUERY_DATABASE_STATE_NOTES")
+    @ApiOperation(value = "queryDatabaseState", notes = "QUERY_DATABASE_STATE_NOTES")
     @GetMapping(value = "/database")
     @ResponseStatus(HttpStatus.OK)
+    @ApiException(QUERY_DATABASE_STATE_ERROR)
     public Result queryDatabaseState(@ApiIgnore @RequestAttribute(value = Constants.SESSION_USER) User loginUser) {
         logger.info("login user: {}, query database state", loginUser.getUserName());
-        try{
-
-            Map<String, Object> result = monitorService.queryDatabaseState(loginUser);
-            return returnDataList(result);
-        }catch (Exception e){
-            logger.error(QUERY_DATABASE_STATE_ERROR.getMsg(),e);
-            return error(QUERY_DATABASE_STATE_ERROR.getCode(),
-                    QUERY_DATABASE_STATE_ERROR.getMsg());
-        }
+        Map<String, Object> result = monitorService.queryDatabaseState(loginUser);
+        return returnDataList(result);
     }
 
     /**
      * query zookeeper state
+     *
      * @param loginUser login user
      * @return zookeeper information list
      */
-    @ApiOperation(value = "queryZookeeperState", notes= "QUERY_ZOOKEEPER_STATE_NOTES")
+    @ApiOperation(value = "queryZookeeperState", notes = "QUERY_ZOOKEEPER_STATE_NOTES")
     @GetMapping(value = "/zookeeper/list")
     @ResponseStatus(HttpStatus.OK)
+    @ApiException(QUERY_ZOOKEEPER_STATE_ERROR)
     public Result queryZookeeperState(@ApiIgnore @RequestAttribute(value = Constants.SESSION_USER) User loginUser) {
         logger.info("login user: {}, query zookeeper state", loginUser.getUserName());
-        try{
-            Map<String, Object> result = monitorService.queryZookeeperState(loginUser);
-            return returnDataList(result);
-        }catch (Exception e){
-            logger.error(QUERY_ZOOKEEPER_STATE_ERROR.getMsg(),e);
-            return error(QUERY_ZOOKEEPER_STATE_ERROR.getCode(),
-                    QUERY_ZOOKEEPER_STATE_ERROR.getMsg());
-        }
+        Map<String, Object> result = monitorService.queryZookeeperState(loginUser);
+        return returnDataList(result);
     }
 
 }

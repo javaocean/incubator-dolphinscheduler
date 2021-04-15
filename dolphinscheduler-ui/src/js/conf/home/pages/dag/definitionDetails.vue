@@ -41,8 +41,8 @@
     props: {},
     methods: {
       ...mapMutations('dag', ['resetParams', 'setIsDetails']),
-      ...mapActions('dag', ['getProcessList','getProjectList', 'getResourcesList', 'getProcessDetails']),
-      ...mapActions('security', ['getTenantList','getWorkerGroupsAll']),
+      ...mapActions('dag', ['getProcessList', 'getProjectList', 'getResourcesList', 'getProcessDetails', 'getResourcesListJar']),
+      ...mapActions('security', ['getTenantList', 'getWorkerGroupsAll', 'getAlarmGroupsAll']),
       /**
        * init
        */
@@ -60,8 +60,12 @@
           this.getProjectList(),
           // get resource
           this.getResourcesList(),
+          // get jar
+          this.getResourcesListJar(),
           // get worker group list
           this.getWorkerGroupsAll(),
+          // get alarm group list
+          this.getAlarmGroupsAll(),
           this.getTenantList()
         ]).then((data) => {
           let item = data[0]
@@ -87,7 +91,7 @@
     },
     watch: {
       // Listening for routing changes
-      '$route': {
+      $route: {
         deep: true,
         handler () {
           this.init()

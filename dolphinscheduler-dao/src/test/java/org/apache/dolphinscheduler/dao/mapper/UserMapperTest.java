@@ -14,35 +14,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.dao.mapper;
 
-import org.apache.dolphinscheduler.common.enums.AlertType;
 import org.apache.dolphinscheduler.common.enums.UserType;
 import org.apache.dolphinscheduler.common.utils.DateUtils;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.apache.dolphinscheduler.dao.entity.*;
+import org.apache.dolphinscheduler.dao.entity.AccessToken;
+import org.apache.dolphinscheduler.dao.entity.AlertGroup;
+import org.apache.dolphinscheduler.dao.entity.Queue;
+import org.apache.dolphinscheduler.dao.entity.Tenant;
+import org.apache.dolphinscheduler.dao.entity.User;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
-import java.util.List;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
+@Transactional
+@Rollback(true)
 public class UserMapperTest {
     @Autowired
     private UserMapper userMapper;
 
     @Autowired
     AlertGroupMapper alertGroupMapper;
-
-    @Autowired
-    private UserAlertGroupMapper userAlertGroupMapper;
 
     @Autowired
     AccessTokenMapper accessTokenMapper;
@@ -55,9 +63,10 @@ public class UserMapperTest {
 
     /**
      * insert one user
+     *
      * @return User
      */
-    private User insertOne(){
+    private User insertOne() {
         User user = new User();
         user.setUserName("user1");
         user.setUserPassword("1");
@@ -66,16 +75,19 @@ public class UserMapperTest {
         user.setCreateTime(new Date());
         user.setTenantId(1);
         user.setUpdateTime(new Date());
+        user.setQueueName("test_queue");
+        user.setQueue("queue");
         userMapper.insert(user);
         return user;
     }
 
     /**
      * insert one user
+     *
      * @param tenant tenant
      * @return User
      */
-    private User insertOne(Tenant tenant){
+    private User insertOne(Tenant tenant) {
         User user = new User();
         user.setUserName("user1");
         user.setUserPassword("1");
@@ -90,11 +102,12 @@ public class UserMapperTest {
 
     /**
      * insert one user
-     * @param queue queue
+     *
+     * @param queue  queue
      * @param tenant tenant
      * @return User
      */
-    private User insertOne(Queue queue,Tenant tenant){
+    private User insertOne(Queue queue, Tenant tenant) {
         User user = new User();
         user.setUserName("user1");
         user.setUserPassword("1");
@@ -110,14 +123,14 @@ public class UserMapperTest {
 
     /**
      * insert one AlertGroup
+     *
      * @return AlertGroup
      */
-    private AlertGroup insertOneAlertGroup(){
+    private AlertGroup insertOneAlertGroup() {
         //insertOne
         AlertGroup alertGroup = new AlertGroup();
         alertGroup.setGroupName("alert group 1");
         alertGroup.setDescription("alert test1");
-        alertGroup.setGroupType(AlertType.EMAIL);
 
         alertGroup.setCreateTime(new Date());
         alertGroup.setUpdateTime(new Date());
@@ -126,47 +139,31 @@ public class UserMapperTest {
     }
 
     /**
-     * insert one UserAlertGroup
-     * @param user user
-     * @param alertGroup alertGroup
-     * @return UserAlertGroup
-     */
-    private UserAlertGroup insertOneUserAlertGroup(User user,AlertGroup alertGroup){
-        UserAlertGroup userAlertGroup = new UserAlertGroup();
-        userAlertGroup.setAlertgroupName(alertGroup.getGroupName());
-        userAlertGroup.setAlertgroupId(alertGroup.getId());
-        userAlertGroup.setUserId(user.getId());
-        userAlertGroup.setCreateTime(new Date());
-        userAlertGroup.setUpdateTime(new Date());
-        userAlertGroupMapper.insert(userAlertGroup);
-        return userAlertGroup;
-    }
-
-    /**
      * insert one AccessToken
+     *
      * @param user user
      * @return AccessToken
      */
-    private AccessToken insertOneAccessToken(User user){
+    private AccessToken insertOneAccessToken(User user) {
         //insertOne
         AccessToken accessToken = new AccessToken();
         accessToken.setUserId(user.getId());
         accessToken.setToken("secrettoken");
         accessToken.setCreateTime(new Date());
         accessToken.setUpdateTime(new Date());
-        accessToken.setExpireTime(DateUtils.getSomeHourOfDay(new Date(),1));
+        accessToken.setExpireTime(DateUtils.getSomeHourOfDay(new Date(), 1));
         accessTokenMapper.insert(accessToken);
         return accessToken;
     }
 
     /**
      * insert one Tenant
+     *
      * @return Tenant
      */
-    private Tenant insertOneTenant(){
+    private Tenant insertOneTenant() {
         Tenant tenant = new Tenant();
         tenant.setTenantCode("dolphin");
-        tenant.setTenantName("dolphin test");
         tenant.setDescription("dolphin user use");
         tenant.setQueue("1");
         tenant.setCreateTime(new Date());
@@ -176,10 +173,28 @@ public class UserMapperTest {
     }
 
     /**
+     * insert one Tenant
+     *
+     * @return Tenant
+     */
+    private Tenant insertOneTenant(Queue queue) {
+        Tenant tenant = new Tenant();
+        tenant.setTenantCode("dolphin");
+        tenant.setDescription("dolphin user use");
+        tenant.setQueueId(queue.getId());
+        tenant.setQueue(queue.getQueue());
+        tenant.setCreateTime(new Date());
+        tenant.setUpdateTime(new Date());
+        tenantMapper.insert(tenant);
+        return tenant;
+    }
+
+    /**
      * insert one Queue
+     *
      * @return Queue
      */
-    private Queue insertOneQueue(){
+    private Queue insertOneQueue() {
         Queue queue = new Queue();
         queue.setQueue("dolphin");
         queue.setQueueName("dolphin queue");
@@ -193,7 +208,7 @@ public class UserMapperTest {
      * test update
      */
     @Test
-    public void testUpdate(){
+    public void testUpdate() {
         //insertOne
         User user = insertOne();
         //update
@@ -202,20 +217,18 @@ public class UserMapperTest {
         user.setUserType(UserType.ADMIN_USER);
         int update = userMapper.updateById(user);
         Assert.assertEquals(update, 1);
-        userMapper.deleteById(user.getId());
     }
 
     /**
      * test delete
      */
     @Test
-    public void testDelete(){
+    public void testDelete() {
         //insertOne
         User user = insertOne();
         //delete
         int delete = userMapper.deleteById(user.getId());
         Assert.assertEquals(delete, 1);
-        userMapper.deleteById(user.getId());
     }
 
     /**
@@ -228,7 +241,6 @@ public class UserMapperTest {
         //query
         List<User> userList = userMapper.selectList(null);
         Assert.assertNotEquals(userList.size(), 0);
-        userMapper.deleteById(user.getId());
     }
 
     /**
@@ -241,35 +253,8 @@ public class UserMapperTest {
         //queryAllGeneralUser
         List<User> userList = userMapper.queryAllGeneralUser();
         Assert.assertNotEquals(userList.size(), 0);
-        userMapper.deleteById(user.getId());
     }
 
-    /**
-     * test query by username
-     */
-    @Test
-    public void testQueryByUserNameAccurately() {
-        //insertOne
-        User user = insertOne();
-        //queryByUserNameAccurately
-        User queryUser = userMapper.queryByUserNameAccurately(user.getUserName());
-        Assert.assertEquals(queryUser.getUserName(), user.getUserName());
-        userMapper.deleteById(user.getId());
-    }
-
-    /**
-     * test query by username and password
-     */
-    @Test
-    public void testQueryUserByNamePassword() {
-        //insertOne
-        User user = insertOne();
-        //queryUserByNamePassword
-        User queryUser = userMapper.queryUserByNamePassword(user.getUserName(),user.getUserPassword());
-        Assert.assertEquals(queryUser.getUserName(),user.getUserName());
-        Assert.assertEquals(queryUser.getUserPassword(),user.getUserPassword());
-        userMapper.deleteById(user.getId());
-    }
 
     /**
      * test page
@@ -281,14 +266,11 @@ public class UserMapperTest {
         //insertOneTenant
         Tenant tenant = insertOneTenant();
         //insertOne
-        User user = insertOne(queue,tenant);
+        User user = insertOne(queue, tenant);
         //queryUserPaging
-        Page<User> page = new Page(1,3);
+        Page<User> page = new Page(1, 3);
         IPage<User> userIPage = userMapper.queryUserPaging(page, user.getUserName());
         Assert.assertNotEquals(userIPage.getTotal(), 0);
-        queueMapper.deleteById(queue.getId());
-        tenantMapper.deleteById(tenant.getId());
-        userMapper.deleteById(user.getId());
     }
 
     /**
@@ -296,32 +278,13 @@ public class UserMapperTest {
      */
     @Test
     public void testQueryDetailsById() {
-        //insertOne
-        User user = insertOne();
+        //insertOneQueue and insertOneTenant
+        Queue queue = insertOneQueue();
+        Tenant tenant = insertOneTenant(queue);
+        User user = insertOne(queue, tenant);
         //queryDetailsById
         User queryUser = userMapper.queryDetailsById(user.getId());
-        Assert.assertEquals(queryUser,user);
-        userMapper.deleteById(user.getId());
-    }
-
-    /**
-     * test query user list by alertgroupId
-     */
-    @Test
-    public void testQueryUserListByAlertGroupId() {
-        //insertOne
-        User user = insertOne();
-        //insertOneAlertGroup
-        AlertGroup alertGroup = insertOneAlertGroup();
-        //insertOneUserAlertGroup
-        UserAlertGroup userAlertGroup = insertOneUserAlertGroup(user, alertGroup);
-        //queryUserListByAlertGroupId
-        List<User> userList = userMapper.queryUserListByAlertGroupId(userAlertGroup.getAlertgroupId());
-        Assert.assertNotEquals(userList.size(), 0);
-        userMapper.deleteById(user.getId());
-        alertGroupMapper.deleteById(alertGroup.getId());
-        userAlertGroupMapper.deleteById(userAlertGroup.getAlertgroupId());
-
+        Assert.assertEquals(user.getUserName(), queryUser.getUserName());
     }
 
     /**
@@ -335,9 +298,7 @@ public class UserMapperTest {
         User user = insertOne(tenant);
         //queryTenantCodeByUserId
         User queryUser = userMapper.queryTenantCodeByUserId(user.getId());
-        Assert.assertEquals(queryUser,user);
-        userMapper.deleteById(user.getId());
-        tenantMapper.deleteById(tenant.getId());
+        Assert.assertEquals(queryUser, user);
     }
 
     /**
@@ -351,9 +312,25 @@ public class UserMapperTest {
         AccessToken accessToken = insertOneAccessToken(user);
         //queryUserByToken
         User userToken = userMapper.queryUserByToken(accessToken.getToken());
-        Assert.assertEquals(userToken,user);
-        userMapper.deleteById(user.getId());
-        accessTokenMapper.deleteById(accessToken.getId());
+        Assert.assertEquals(userToken, user);
 
+    }
+
+    @Test
+    public void selectByIds() {
+        //insertOne
+        User user = insertOne();
+        List<Integer> userIds = new ArrayList<>();
+        userIds.add(user.getId());
+        List<User> users = userMapper.selectByIds(userIds);
+        Assert.assertFalse(users.isEmpty());
+    }
+
+    @Test
+    public void testExistUser() {
+        String queueName = "queue";
+        Assert.assertNull(userMapper.existUser(queueName));
+        insertOne();
+        Assert.assertTrue(userMapper.existUser(queueName));
     }
 }

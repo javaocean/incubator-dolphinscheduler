@@ -16,8 +16,6 @@
  */
 package org.apache.dolphinscheduler.remote.command;
 
-import com.sun.org.apache.regexp.internal.RE;
-
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -30,6 +28,7 @@ public class Command implements Serializable {
     private static final AtomicLong REQUEST_ID = new AtomicLong(1);
 
     public static final byte MAGIC = (byte) 0xbabe;
+    public static final byte VERSION = 0;
 
     public Command(){
         this.opaque = REQUEST_ID.getAndIncrement();
@@ -48,6 +47,11 @@ public class Command implements Serializable {
      *  request unique identification
      */
     private long opaque;
+
+    /**
+     * request context
+     */
+    private CommandContext context = new CommandContext();
 
     /**
      *  data body
@@ -76,6 +80,14 @@ public class Command implements Serializable {
 
     public void setBody(byte[] body) {
         this.body = body;
+    }
+
+    public CommandContext getContext() {
+        return context;
+    }
+
+    public void setContext(CommandContext context) {
+        this.context = context;
     }
 
     @Override

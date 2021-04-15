@@ -1,4 +1,3 @@
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,27 +17,21 @@
 
 package org.apache.dolphinscheduler.common.utils;
 
-
+import java.io.Closeable;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 
 public class IOUtils {
 
-    public static void closeQuietly(InputStream fis){
-        if(fis != null){
-            try {
-                fis.close();
-            } catch (IOException ignore) {
-            }
-        }
+    private IOUtils() {
+        throw new UnsupportedOperationException("Construct IOUtils");
     }
 
-    public static void closeQuietly(InputStreamReader reader){
-        if(reader != null){
+    public static void closeQuietly(Closeable closeable) {
+        if (closeable != null) {
             try {
-                reader.close();
+                closeable.close();
             } catch (IOException ignore) {
+                // nothing need to do
             }
         }
     }

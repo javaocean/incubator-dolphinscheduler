@@ -21,8 +21,6 @@ import org.apache.dolphinscheduler.common.enums.ExecutionStatus;
 import org.apache.dolphinscheduler.common.thread.Stopper;
 import org.apache.dolphinscheduler.dao.entity.ProcessInstance;
 import org.apache.dolphinscheduler.dao.entity.TaskInstance;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Date;
 
@@ -32,11 +30,6 @@ import java.util.Date;
 public class SubProcessTaskExecThread extends MasterBaseTaskExecThread {
 
     /**
-     * logger of SubProcessTaskExecThread
-     */
-    private static final Logger logger = LoggerFactory.getLogger(SubProcessTaskExecThread.class);
-
-    /**
      * sub process instance
      */
     private ProcessInstance subProcessInstance;
@@ -44,10 +37,9 @@ public class SubProcessTaskExecThread extends MasterBaseTaskExecThread {
     /**
      * sub process task exec thread
      * @param taskInstance      task instance
-     * @param processInstance   process instance
      */
-    public SubProcessTaskExecThread(TaskInstance taskInstance, ProcessInstance processInstance){
-        super(taskInstance, processInstance);
+    public SubProcessTaskExecThread(TaskInstance taskInstance){
+        super(taskInstance);
     }
 
     @Override
@@ -95,13 +87,13 @@ public class SubProcessTaskExecThread extends MasterBaseTaskExecThread {
      *  set task instance state
      * @return
      */
-    private Boolean setTaskInstanceState(){
+    private boolean setTaskInstanceState(){
         subProcessInstance = processService.findSubProcessInstance(processInstance.getId(), taskInstance.getId());
         if(subProcessInstance == null || taskInstance.getState().typeIsFinished()){
             return false;
         }
 
-        taskInstance.setState(ExecutionStatus.RUNNING_EXEUTION);
+        taskInstance.setState(ExecutionStatus.RUNNING_EXECUTION);
         taskInstance.setStartTime(new Date());
         processService.updateTaskInstance(taskInstance);
         return true;
@@ -131,26 +123,27 @@ public class SubProcessTaskExecThread extends MasterBaseTaskExecThread {
         if (taskInstance.getState().typeIsFinished()) {
             logger.info("sub work flow task {} already complete. task state:{}, parent work flow instance state:{}",
                     this.taskInstance.getName(),
-                    this.taskInstance.getState().toString(),
-                    this.processInstance.getState().toString());
+                    this.taskInstance.getState(),
+                    this.processInstance.getState());
             return;
         }
         while (Stopper.isRunning()) {
             // waiting for subflow process instance establishment
             if (subProcessInstance == null) {
-
                 Thread.sleep(Constants.SLEEP_TIME_MILLIS);
-
                 if(!setTaskInstanceState()){
                     continue;
                 }
             }
             subProcessInstance = processService.findProcessInstanceById(subProcessInstance.getId());
+            if (checkTaskTimeout()) {
+                this.checkTimeoutFlag = !alertTimeout();
+                handleTimeoutFailed();
+            }
             updateParentProcessState();
             if (subProcessInstance.getState().typeIsFinished()){
                 break;
             }
-
             if(this.processInstance.getState() == ExecutionStatus.READY_PAUSE){
                 // parent process "ready to pause" , child process "pause"
                 pauseSubProcess();

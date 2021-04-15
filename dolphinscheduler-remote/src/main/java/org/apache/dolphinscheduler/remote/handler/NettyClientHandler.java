@@ -14,20 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.remote.handler;
 
-import io.netty.channel.*;
 import org.apache.dolphinscheduler.remote.NettyRemotingClient;
 import org.apache.dolphinscheduler.remote.command.Command;
+import org.apache.dolphinscheduler.remote.command.CommandType;
 import org.apache.dolphinscheduler.remote.future.ResponseFuture;
+import org.apache.dolphinscheduler.remote.processor.NettyRequestProcessor;
 import org.apache.dolphinscheduler.remote.utils.ChannelUtils;
+import org.apache.dolphinscheduler.remote.utils.Constants;
+import org.apache.dolphinscheduler.remote.utils.Pair;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ExecutorService;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.timeout.IdleStateEvent;
 
 /**
- *  netty client request handler
+ * netty client request handler
  */
 @ChannelHandler.Sharable
 public class NettyClientHandler extends ChannelInboundHandlerAdapter {
@@ -35,107 +50,146 @@ public class NettyClientHandler extends ChannelInboundHandlerAdapter {
     private final Logger logger = LoggerFactory.getLogger(NettyClientHandler.class);
 
     /**
-     *  netty client
+     * netty client
      */
     private final NettyRemotingClient nettyRemotingClient;
 
+    private static byte[] heartBeatData = "heart_beat".getBytes();
+
     /**
-     *  callback thread executor
+     * callback thread executor
      */
     private final ExecutorService callbackExecutor;
 
-    public NettyClientHandler(NettyRemotingClient nettyRemotingClient, ExecutorService callbackExecutor){
+    /**
+     * processors
+     */
+    private final ConcurrentHashMap<CommandType, Pair<NettyRequestProcessor, ExecutorService>> processors;
+
+    /**
+     * default executor
+     */
+    private final ExecutorService defaultExecutor = Executors.newFixedThreadPool(Constants.CPUS);
+
+    public NettyClientHandler(NettyRemotingClient nettyRemotingClient, ExecutorService callbackExecutor) {
         this.nettyRemotingClient = nettyRemotingClient;
         this.callbackExecutor = callbackExecutor;
+        this.processors = new ConcurrentHashMap<>();
     }
 
     /**
-     *  When the current channel is not active,
-     *  the current channel has reached the end of its life cycle
+     * When the current channel is not active,
+     * the current channel has reached the end of its life cycle
      *
      * @param ctx channel handler context
-     * @throws Exception
      */
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void channelInactive(ChannelHandlerContext ctx) {
         nettyRemotingClient.closeChannel(ChannelUtils.toAddress(ctx.channel()));
         ctx.channel().close();
     }
 
     /**
-     *  The current channel reads data from the remote
+     * The current channel reads data from the remote
      *
      * @param ctx channel handler context
      * @param msg message
-     * @throws Exception
      */
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        processReceived((Command)msg);
+    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        processReceived(ctx.channel(), (Command) msg);
     }
 
     /**
-     *  process received logic
+     * register processor
      *
-     * @param responseCommand responseCommand
+     * @param commandType command type
+     * @param processor processor
      */
-    private void processReceived(final Command responseCommand) {
-        ResponseFuture future = ResponseFuture.getFuture(responseCommand.getOpaque());
-        if(future != null){
-            future.setResponseCommand(responseCommand);
+    public void registerProcessor(final CommandType commandType, final NettyRequestProcessor processor) {
+        this.registerProcessor(commandType, processor, null);
+    }
+
+    /**
+     * register processor
+     *
+     * @param commandType command type
+     * @param processor processor
+     * @param executor thread executor
+     */
+    public void registerProcessor(final CommandType commandType, final NettyRequestProcessor processor, final ExecutorService executor) {
+        ExecutorService executorRef = executor;
+        if (executorRef == null) {
+            executorRef = defaultExecutor;
+        }
+        this.processors.putIfAbsent(commandType, new Pair<>(processor, executorRef));
+    }
+
+    /**
+     * process received logic
+     *
+     * @param command command
+     */
+    private void processReceived(final Channel channel, final Command command) {
+        ResponseFuture future = ResponseFuture.getFuture(command.getOpaque());
+        if (future != null) {
+            future.setResponseCommand(command);
             future.release();
-            if(future.getInvokeCallback() != null){
-                this.callbackExecutor.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        future.executeInvokeCallback();
-                    }
-                });
-            } else{
-                future.putResponse(responseCommand);
+            if (future.getInvokeCallback() != null) {
+                this.callbackExecutor.submit(future::executeInvokeCallback);
+            } else {
+                future.putResponse(command);
             }
-        } else{
-            logger.warn("receive response {}, but not matched any request ", responseCommand);
+        } else {
+            processByCommandType(channel, command);
+        }
+    }
+
+    public void processByCommandType(final Channel channel, final Command command) {
+        final Pair<NettyRequestProcessor, ExecutorService> pair = processors.get(command.getType());
+        if (pair != null) {
+            Runnable run = () -> {
+                try {
+                    pair.getLeft().process(channel, command);
+                } catch (Exception e) {
+                    logger.error(String.format("process command %s exception", command), e);
+                }
+            };
+            try {
+                pair.getRight().submit(run);
+            } catch (RejectedExecutionException e) {
+                logger.warn("thread pool is full, discard command {} from {}", command, ChannelUtils.getRemoteAddress(channel));
+            }
+        } else {
+            logger.warn("receive response {}, but not matched any request ", command);
         }
     }
 
     /**
-     *  caught exception
+     * caught exception
+     *
      * @param ctx channel handler context
-     * @param cause  cause
-     * @throws Exception
+     * @param cause cause
      */
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        logger.error("exceptionCaught : {}",cause.getMessage(), cause);
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        logger.error("exceptionCaught : {}", cause.getMessage(), cause);
         nettyRemotingClient.closeChannel(ChannelUtils.toAddress(ctx.channel()));
         ctx.channel().close();
     }
 
-    /**
-     *  channel write changed
-     *
-     * @param ctx channel handler context
-     * @throws Exception
-     */
     @Override
-    public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-        Channel ch = ctx.channel();
-        ChannelConfig config = ch.config();
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        if (evt instanceof IdleStateEvent) {
+            Command heartBeat = new Command();
+            heartBeat.setType(CommandType.HEART_BEAT);
+            heartBeat.setBody(heartBeatData);
+            ctx.writeAndFlush(heartBeat)
+                    .addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
 
-        if (!ch.isWritable()) {
-            if (logger.isWarnEnabled()) {
-                logger.warn("{} is not writable, over high water level : {}",
-                        new Object[]{ch, config.getWriteBufferHighWaterMark()});
-            }
-
-            config.setAutoRead(false);
         } else {
-            if (logger.isWarnEnabled()) {
-                logger.warn("{} is writable, to low water : {}",
-                        new Object[]{ch, config.getWriteBufferLowWaterMark()});
-            }
-            config.setAutoRead(true);
+            super.userEventTriggered(ctx, evt);
         }
     }
+
 }

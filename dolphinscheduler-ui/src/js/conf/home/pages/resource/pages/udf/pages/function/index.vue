@@ -19,7 +19,14 @@
     <template slot="conditions">
       <m-conditions @on-conditions="_onConditions">
         <template slot="button-group">
-          <x-button type="ghost" @click="_create"  size="small" >{{$t('Create UDF Function')}}</x-button>
+          <el-button-group>
+            <el-button size="mini" @click="_create">{{$t('Create UDF Function')}}</el-button>
+          </el-button-group>
+          <el-dialog
+            :visible.sync="createUdfDialog"
+            width="auto">
+            <m-create-udf @onUpdate="onUpdate" @close="close"></m-create-udf>
+          </el-dialog>
         </template>
       </m-conditions>
     </template>
@@ -28,14 +35,22 @@
         <m-list :udf-func-list="udfFuncList" :page-no="searchParams.pageNo" :page-size="searchParams.pageSize" @on-update="_updateList">
         </m-list>
         <div class="page-box">
-          <x-page :current="parseInt(searchParams.pageNo)" :total="total" :page-size="searchParams.pageSize" show-elevator @on-change="_page" show-sizer :page-size-options="[10,30,50]" @on-size-change="_pageSize"></x-page>
+          <el-pagination
+            background
+            @current-change="_page"
+            @size-change="_pageSize"
+            :page-size="searchParams.pageSize"
+            :current-page.sync="searchParams.pageNo"
+            :page-sizes="[10, 30, 50]"
+            layout="sizes, prev, pager, next, jumper"
+            :total="total">
+          </el-pagination>
         </div>
       </template>
       <template v-if="!udfFuncList.length && total<=0">
         <m-no-data></m-no-data>
       </template>
-      <m-spin :is-spin="isLoading">
-      </m-spin>
+      <m-spin :is-spin="isLoading" :is-left="isLeft"></m-spin>
     </template>
   </m-list-construction>
 </template>
@@ -58,10 +73,13 @@
         isLoading: false,
         udfFuncList: [],
         searchParams: {
+          id: -1,
           pageSize: 10,
           pageNo: 1,
           searchVal: ''
-        }
+        },
+        isLeft: true,
+        createUdfDialog: false
       }
     },
     mixins: [listUrlParamHandle],
@@ -79,38 +97,30 @@
         this.searchParams.pageSize = val
       },
       _create () {
-        let self = this
-        let modal = this.$modal.dialog({
-          closable: false,
-          showMask: true,
-          escClose: true,
-          className: 'v-modal-custom',
-          transitionName: 'opacityp',
-          render (h) {
-            return h(mCreateUdf, {
-              on: {
-                onUpdate () {
-                  self._updateList()
-                  modal.remove()
-                },
-                close () {
-                  modal.remove()
-                }
-              },
-              props: {
-              }
-            })
-          }
-        })
+        this.createUdfDialog = true
       },
+      onUpdate () {
+        this._updateList()
+        this.createUdfDialog = false
+      },
+
+      close () {
+        this.createUdfDialog = false
+      },
+
       _updateList () {
         this._debounceGET()
       },
       _getList (flag) {
+        if (sessionStorage.getItem('isLeft') === 0) {
+          this.isLeft = false
+        } else {
+          this.isLeft = true
+        }
         this.isLoading = !flag
         this.getUdfFuncListP(this.searchParams).then(res => {
-          if(this.searchParams.pageNo>1 && res.totalList.length == 0) {
-            this.searchParams.pageNo = this.searchParams.pageNo -1
+          if (this.searchParams.pageNo > 1 && res.totalList.length === 0) {
+            this.searchParams.pageNo = this.searchParams.pageNo - 1
           } else {
             this.udfFuncList = []
             this.udfFuncList = res.totalList
@@ -132,7 +142,9 @@
     created () {
     },
     mounted () {
-      this.$modal.destroy()
+    },
+    beforeDestroy () {
+      sessionStorage.setItem('isLeft', 1)
     },
     components: { mListConstruction, mConditions, mList, mSpin, mCreateUdf, mNoData }
   }

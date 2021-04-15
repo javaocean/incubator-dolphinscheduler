@@ -26,13 +26,17 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
+@Transactional
+@Rollback(true)
 public class TenantMapperTest {
 
     @Autowired
@@ -50,6 +54,7 @@ public class TenantMapperTest {
         Tenant tenant = new Tenant();
         tenant.setCreateTime(new Date());
         tenant.setUpdateTime(new Date());
+        tenant.setTenantCode("test_code");
         tenantMapper.insert(tenant);
         return tenant;
     }
@@ -64,8 +69,7 @@ public class TenantMapperTest {
         tenant.setUpdateTime(new Date());
         //update
         int update = tenantMapper.updateById(tenant);
-        Assert.assertEquals(update, 1);
-        tenantMapper.deleteById(tenant.getId());
+        Assert.assertEquals(1, update);
     }
 
     /**
@@ -75,7 +79,7 @@ public class TenantMapperTest {
     public void testDelete(){
         Tenant tenant = insertOne();
         int delete = tenantMapper.deleteById(tenant.getId());
-        Assert.assertEquals(delete, 1);
+        Assert.assertEquals(1, delete);
     }
 
     /**
@@ -87,7 +91,6 @@ public class TenantMapperTest {
         //query
         List<Tenant> tenants = tenantMapper.selectList(null);
         Assert.assertNotEquals(tenants.size(), 0);
-        tenantMapper.deleteById(tenant.getId());
     }
 
     /**
@@ -108,7 +111,6 @@ public class TenantMapperTest {
 
         Tenant tenant1 = tenantMapper.queryById(tenant.getId());
 
-        tenantMapper.deleteById(tenant.getId());
         Assert.assertNotEquals(tenant1, null);
     }
 
@@ -121,7 +123,8 @@ public class TenantMapperTest {
         Tenant tenant = insertOne();
         tenant.setTenantCode("ut code");
         tenantMapper.updateById(tenant);
-        tenantMapper.deleteById(tenant.getId());
+        List<Tenant> tenantList = tenantMapper.queryByTenantCode("ut code");
+        Assert.assertEquals(1, tenantList.size());
     }
 
     /**
@@ -137,15 +140,20 @@ public class TenantMapperTest {
 
         Tenant tenant = insertOne();
         tenant.setTenantCode("ut code");
-        tenant.setTenantName("ut name");
         tenant.setQueueId(queue.getId());
         tenantMapper.updateById(tenant);
-        Page<Tenant> page = new Page(1,3);
+        Page<Tenant> page = new Page(1, 3);
 
-        IPage<Tenant> tenantIPage = tenantMapper.queryTenantPaging(page, tenant.getTenantName());
+        //tenant.getTenantCode() used instead of tenant.getTenantName()
+        IPage<Tenant> tenantIPage = tenantMapper.queryTenantPaging(page, tenant.getTenantCode());
 
-        queueMapper.deleteById(queue.getId());
-        tenantMapper.deleteById(tenant.getId());
         Assert.assertNotEquals(tenantIPage.getTotal(), 0);
+    }
+
+    public void testExistTenant() {
+        String tenantCode = "test_code";
+        Assert.assertNull(tenantMapper.existTenant(tenantCode));
+        insertOne();
+        Assert.assertTrue(tenantMapper.existTenant(tenantCode));
     }
 }

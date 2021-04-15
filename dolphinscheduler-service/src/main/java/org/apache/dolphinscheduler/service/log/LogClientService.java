@@ -14,17 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.service.log;
 
+import org.apache.dolphinscheduler.common.utils.JSONUtils;
+import org.apache.dolphinscheduler.common.utils.LoggerUtils;
 import org.apache.dolphinscheduler.remote.NettyRemotingClient;
 import org.apache.dolphinscheduler.remote.command.Command;
-import org.apache.dolphinscheduler.remote.command.log.*;
+import org.apache.dolphinscheduler.remote.command.log.GetLogBytesRequestCommand;
+import org.apache.dolphinscheduler.remote.command.log.GetLogBytesResponseCommand;
+import org.apache.dolphinscheduler.remote.command.log.RemoveTaskLogRequestCommand;
+import org.apache.dolphinscheduler.remote.command.log.RemoveTaskLogResponseCommand;
+import org.apache.dolphinscheduler.remote.command.log.RollViewLogRequestCommand;
+import org.apache.dolphinscheduler.remote.command.log.RollViewLogResponseCommand;
+import org.apache.dolphinscheduler.remote.command.log.ViewLogRequestCommand;
+import org.apache.dolphinscheduler.remote.command.log.ViewLogResponseCommand;
 import org.apache.dolphinscheduler.remote.config.NettyClientConfig;
-import org.apache.dolphinscheduler.remote.utils.Address;
-import org.apache.dolphinscheduler.remote.utils.FastJsonSerializer;
+import org.apache.dolphinscheduler.remote.utils.Host;
+import org.apache.dolphinscheduler.remote.utils.IPUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * log client
@@ -37,10 +47,12 @@ public class LogClientService {
 
     private final NettyRemotingClient client;
 
+    private volatile boolean isRunning;
+
     /**
-     *  request time out
+     * request time out
      */
-    private final long logRequestTimeout = 10 * 1000;
+    private static final long LOG_REQUEST_TIMEOUT = 10 * 1000L;
 
     /**
      * construct client
@@ -49,18 +61,21 @@ public class LogClientService {
         this.clientConfig = new NettyClientConfig();
         this.clientConfig.setWorkerThreads(4);
         this.client = new NettyRemotingClient(clientConfig);
+        this.isRunning = true;
     }
 
     /**
      * close
      */
-    public void close()  {
+    public void close() {
         this.client.close();
+        this.isRunning = false;
         logger.info("logger client closed");
     }
 
     /**
      * roll view log
+     *
      * @param host host
      * @param port port
      * @param path path
@@ -68,16 +83,16 @@ public class LogClientService {
      * @param limit limit
      * @return log content
      */
-    public String rollViewLog(String host, int port, String path,int skipLineNum,int limit) {
+    public String rollViewLog(String host, int port, String path, int skipLineNum, int limit) {
         logger.info("roll view log, host : {}, port : {}, path {}, skipLineNum {} ,limit {}", host, port, path, skipLineNum, limit);
         RollViewLogRequestCommand request = new RollViewLogRequestCommand(path, skipLineNum, limit);
         String result = "";
-        final Address address = new Address(host, port);
+        final Host address = new Host(host, port);
         try {
             Command command = request.convert2Command();
-            Command response = this.client.sendSync(address, command, logRequestTimeout);
-            if(response != null){
-                RollViewLogResponseCommand rollReviewLog = FastJsonSerializer.deserialize(
+            Command response = this.client.sendSync(address, command, LOG_REQUEST_TIMEOUT);
+            if (response != null) {
+                RollViewLogResponseCommand rollReviewLog = JSONUtils.parseObject(
                         response.getBody(), RollViewLogResponseCommand.class);
                 return rollReviewLog.getMsg();
             }
@@ -91,6 +106,7 @@ public class LogClientService {
 
     /**
      * view log
+     *
      * @param host host
      * @param port port
      * @param path path
@@ -100,14 +116,18 @@ public class LogClientService {
         logger.info("view log path {}", path);
         ViewLogRequestCommand request = new ViewLogRequestCommand(path);
         String result = "";
-        final Address address = new Address(host, port);
+        final Host address = new Host(host, port);
         try {
-            Command command = request.convert2Command();
-            Command response = this.client.sendSync(address, command, logRequestTimeout);
-            if(response != null){
-                ViewLogResponseCommand viewLog = FastJsonSerializer.deserialize(
-                        response.getBody(), ViewLogResponseCommand.class);
-                return viewLog.getMsg();
+            if (IPUtils.getLocalHost().equals(host)) {
+                result = LoggerUtils.readWholeFileContent(request.getPath());
+            } else {
+                Command command = request.convert2Command();
+                Command response = this.client.sendSync(address, command, LOG_REQUEST_TIMEOUT);
+                if (response != null) {
+                    ViewLogResponseCommand viewLog = JSONUtils.parseObject(
+                            response.getBody(), ViewLogResponseCommand.class);
+                    result = viewLog.getMsg();
+                }
             }
         } catch (Exception e) {
             logger.error("view log error", e);
@@ -119,6 +139,7 @@ public class LogClientService {
 
     /**
      * get log size
+     *
      * @param host host
      * @param port port
      * @param path log path
@@ -128,12 +149,12 @@ public class LogClientService {
         logger.info("log path {}", path);
         GetLogBytesRequestCommand request = new GetLogBytesRequestCommand(path);
         byte[] result = null;
-        final Address address = new Address(host, port);
+        final Host address = new Host(host, port);
         try {
             Command command = request.convert2Command();
-            Command response = this.client.sendSync(address, command, logRequestTimeout);
-            if(response != null){
-                GetLogBytesResponseCommand getLog = FastJsonSerializer.deserialize(
+            Command response = this.client.sendSync(address, command, LOG_REQUEST_TIMEOUT);
+            if (response != null) {
+                GetLogBytesResponseCommand getLog = JSONUtils.parseObject(
                         response.getBody(), GetLogBytesResponseCommand.class);
                 return getLog.getData();
             }
@@ -143,5 +164,38 @@ public class LogClientService {
             this.client.closeChannel(address);
         }
         return result;
+    }
+
+    /**
+     * remove task log
+     *
+     * @param host host
+     * @param port port
+     * @param path path
+     * @return remove task status
+     */
+    public Boolean removeTaskLog(String host, int port, String path) {
+        logger.info("log path {}", path);
+        RemoveTaskLogRequestCommand request = new RemoveTaskLogRequestCommand(path);
+        Boolean result = false;
+        final Host address = new Host(host, port);
+        try {
+            Command command = request.convert2Command();
+            Command response = this.client.sendSync(address, command, LOG_REQUEST_TIMEOUT);
+            if (response != null) {
+                RemoveTaskLogResponseCommand taskLogResponse = JSONUtils.parseObject(
+                        response.getBody(), RemoveTaskLogResponseCommand.class);
+                return taskLogResponse.getStatus();
+            }
+        } catch (Exception e) {
+            logger.error("remove task log error", e);
+        } finally {
+            this.client.closeChannel(address);
+        }
+        return result;
+    }
+
+    public boolean isRunning() {
+        return isRunning;
     }
 }

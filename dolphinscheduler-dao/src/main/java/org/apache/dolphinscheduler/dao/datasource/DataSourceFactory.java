@@ -18,7 +18,7 @@ package org.apache.dolphinscheduler.dao.datasource;
 
 import org.apache.dolphinscheduler.common.Constants;
 import org.apache.dolphinscheduler.common.enums.DbType;
-import org.apache.dolphinscheduler.common.utils.JSONUtils;
+import org.apache.dolphinscheduler.common.utils.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +29,12 @@ public class DataSourceFactory {
 
   private static final Logger logger = LoggerFactory.getLogger(DataSourceFactory.class);
 
+  /**
+   * getDatasource
+   * @param dbType dbType
+   * @param parameter parameter
+   * @return getDatasource
+   */
   public static BaseDataSource getDatasource(DbType dbType, String parameter) {
     try {
       switch (dbType) {
@@ -48,6 +54,8 @@ public class DataSourceFactory {
           return JSONUtils.parseObject(parameter, SQLServerDataSource.class);
         case DB2:
           return JSONUtils.parseObject(parameter, DB2ServerDataSource.class);
+        case PRESTO:
+          return JSONUtils.parseObject(parameter, PrestoDataSource.class);
         default:
           return null;
       }
@@ -87,6 +95,9 @@ public class DataSourceFactory {
         break;
       case DB2:
         Class.forName(Constants.COM_DB2_JDBC_DRIVER);
+        break;
+      case PRESTO:
+        Class.forName(Constants.COM_PRESTO_JDBC_DRIVER);
         break;
       default:
         logger.error("not support sql type: {},can't load class", dbType);

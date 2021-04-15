@@ -19,6 +19,7 @@ package org.apache.dolphinscheduler.server.worker.task;
 import org.apache.dolphinscheduler.common.Constants;
 import org.apache.dolphinscheduler.common.utils.FileUtils;
 import org.apache.dolphinscheduler.common.utils.StringUtils;
+import org.apache.dolphinscheduler.server.entity.TaskExecutionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,25 +51,13 @@ public class PythonCommandExecutor extends AbstractCommandExecutor {
     /**
      * constructor
      * @param logHandler    log handler
-     * @param taskDir       task dir
-     * @param taskAppId     task app id
-     * @param taskInstId    task instance id
-     * @param tenantCode    tenant code
-     * @param envFile       env file
-     * @param startTime     start time
-     * @param timeout       timeout
+     * @param taskExecutionContext       taskExecutionContext
      * @param logger        logger
      */
     public PythonCommandExecutor(Consumer<List<String>> logHandler,
-                                 String taskDir,
-                                 String taskAppId,
-                                 int taskInstId,
-                                 String tenantCode,
-                                 String envFile,
-                                 Date startTime,
-                                 int timeout,
+                                 TaskExecutionContext taskExecutionContext,
                                  Logger logger) {
-        super(logHandler,taskDir,taskAppId,taskInstId,tenantCode, envFile, startTime, timeout, logger);
+        super(logHandler,taskExecutionContext,logger);
     }
 
 
@@ -79,7 +68,7 @@ public class PythonCommandExecutor extends AbstractCommandExecutor {
      */
     @Override
     protected String buildCommandFilePath() {
-        return String.format("%s/py_%s.command", taskDir, taskAppId);
+        return String.format("%s/py_%s.command", taskExecutionContext.getExecutePath(), taskExecutionContext.getTaskAppId());
     }
 
     /**
@@ -90,7 +79,7 @@ public class PythonCommandExecutor extends AbstractCommandExecutor {
      */
     @Override
     protected void createCommandFileIfNotExists(String execCommand, String commandFile) throws IOException {
-        logger.info("tenantCode :{}, task dir:{}", tenantCode, taskDir);
+        logger.info("tenantCode :{}, task dir:{}", taskExecutionContext.getTenantCode(), taskExecutionContext.getExecutePath());
 
         if (!Files.exists(Paths.get(commandFile))) {
             logger.info("generate command file:{}", commandFile);
@@ -120,39 +109,26 @@ public class PythonCommandExecutor extends AbstractCommandExecutor {
     }
 
     /**
-     * get python home
-     * @return python home
+     * Gets the command path to which Python can execute
+     * @return python command path
      */
     @Override
     protected String commandInterpreter() {
-        String pythonHome = getPythonHome(envFile);
+        String pythonHome = getPythonHome(taskExecutionContext.getEnvFile());
         if (StringUtils.isEmpty(pythonHome)){
             return PYTHON;
         }
-        return pythonHome;
-    }
-
-    /**
-     * check find yarn application id
-     * @param line line
-     * @return boolean
-     */
-    @Override
-    protected boolean checkFindApp(String line) {
-        return true;
+        return pythonHome + "/bin/python";
     }
 
 
+
     /**
-     *  get the absolute path of the Python command
+     *  get the absolute path of the Python are installed
      *  note :
-     *  common.properties
-     *  PYTHON_HOME configured under common.properties is Python absolute path, not PYTHON_HOME itself
      *
      *  for example :
-     *  your PYTHON_HOM is /opt/python3.7/
-     *  you must set PYTHON_HOME is /opt/python3.7/python under nder common.properties
-     *  dolphinscheduler.env.path file.
+     *  your PYTHON_HOM is /opt/python3.7
      *
      * @param envPath env path
      * @return python home

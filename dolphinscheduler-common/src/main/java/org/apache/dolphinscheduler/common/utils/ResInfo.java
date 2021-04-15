@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.common.utils;
+
 import org.apache.dolphinscheduler.common.Constants;
 import org.apache.dolphinscheduler.common.model.Server;
-
-import java.util.Date;
 
 /**
  *  heartbeat for ZK reigster res info
@@ -40,10 +40,8 @@ public class ResInfo {
      */
     private double loadAverage;
 
-    public ResInfo(){}
-
-    public ResInfo(double cpuUsage , double memoryUsage){
-        this.cpuUsage = cpuUsage ;
+    public ResInfo(double cpuUsage, double memoryUsage) {
+        this.cpuUsage = cpuUsage;
         this.memoryUsage = memoryUsage;
     }
 
@@ -83,49 +81,9 @@ public class ResInfo {
      * @param loadAverage load average
      * @return cpu and memory usage
      */
-    public static String getResInfoJson(double cpuUsage , double memoryUsage,double loadAverage){
+    public static String getResInfoJson(double cpuUsage, double memoryUsage, double loadAverage) {
         ResInfo resInfo = new ResInfo(cpuUsage,memoryUsage,loadAverage);
-        return JSONUtils.toJson(resInfo);
-    }
-
-
-    /**
-     * get heart beat info
-     * @param now now
-     * @return heart beat info
-     */
-    public static String getHeartBeatInfo(Date now){
-        return buildHeartbeatForZKInfo(OSUtils.getHost(),
-                OSUtils.getProcessID(),
-                OSUtils.cpuUsage(),
-                OSUtils.memoryUsage(),
-                OSUtils.loadAverage(),
-                DateUtils.dateToString(now),
-                DateUtils.dateToString(now));
-
-    }
-
-    /**
-     * build heartbeat info for zk
-     * @param host host
-     * @param port port
-     * @param cpuUsage cpu usage
-     * @param memoryUsage memory usage
-     * @param loadAverage load average
-     * @param createTime create time
-     * @param lastHeartbeatTime last heartbeat time
-     * @return  heartbeat info
-     */
-    public static String buildHeartbeatForZKInfo(String host , int port ,
-                                         double cpuUsage , double memoryUsage,double loadAverage,
-                                         String createTime,String lastHeartbeatTime){
-
-        return host + Constants.COMMA + port + Constants.COMMA
-                + cpuUsage + Constants.COMMA
-                + memoryUsage + Constants.COMMA
-                + loadAverage + Constants.COMMA
-                + createTime + Constants.COMMA
-                + lastHeartbeatTime;
+        return JSONUtils.toJsonString(resInfo);
     }
 
     /**
@@ -133,24 +91,43 @@ public class ResInfo {
      * @param heartBeatInfo heartbeat info
      * @return heartbeat info to Server
      */
-    public static Server parseHeartbeatForZKInfo(String heartBeatInfo){
-        if (StringUtils.isEmpty(heartBeatInfo)) {
+    public static Server parseHeartbeatForZKInfo(String heartBeatInfo) {
+        if (!isValidHeartbeatForZKInfo(heartBeatInfo)) {
             return null;
         }
-        String[] masterArray = heartBeatInfo.split(Constants.COMMA);
-        if(masterArray.length != Constants.HEARTBEAT_FOR_ZOOKEEPER_INFO_LENGTH){
-            return null;
+        String[] parts = heartBeatInfo.split(Constants.COMMA);
+        Server server = new Server();
+        server.setResInfo(getResInfoJson(Double.parseDouble(parts[0]),
+                Double.parseDouble(parts[1]),
+                Double.parseDouble(parts[2])));
+        server.setCreateTime(DateUtils.stringToDate(parts[6]));
+        server.setLastHeartbeatTime(DateUtils.stringToDate(parts[7]));
+        //set process id
+        server.setId(Integer.parseInt(parts[9]));
+        return server;
+    }
 
+    /**
+     * is valid heartbeat info for zk
+     * @param heartBeatInfo heartbeat info
+     * @return heartbeat info is valid
+     */
+    public static boolean isValidHeartbeatForZKInfo(String heartBeatInfo) {
+        if (StringUtils.isNotEmpty(heartBeatInfo)) {
+            String[] parts = heartBeatInfo.split(Constants.COMMA);
+            return parts.length == Constants.HEARTBEAT_FOR_ZOOKEEPER_INFO_LENGTH
+                    || parts.length == Constants.HEARTBEAT_WITH_WEIGHT_FOR_ZOOKEEPER_INFO_LENGTH;
         }
-        Server masterServer = new Server();
-        masterServer.setHost(masterArray[0]);
-        masterServer.setPort(Integer.parseInt(masterArray[1]));
-        masterServer.setResInfo(getResInfoJson(Double.parseDouble(masterArray[2]),
-                Double.parseDouble(masterArray[3]),
-                Double.parseDouble(masterArray[4])));
-        masterServer.setCreateTime(DateUtils.stringToDate(masterArray[5]));
-        masterServer.setLastHeartbeatTime(DateUtils.stringToDate(masterArray[6]));
-        return masterServer;
+        return false;
+    }
+
+    /**
+     * is new heartbeat info for zk with weight
+     * @param parts heartbeat info parts
+     * @return heartbeat info is new with weight
+     */
+    public static boolean isNewHeartbeatWithWeight(String[] parts) {
+        return parts.length == Constants.HEARTBEAT_WITH_WEIGHT_FOR_ZOOKEEPER_INFO_LENGTH;
     }
 
 }

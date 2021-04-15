@@ -14,49 +14,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.server.worker;
 
-import org.apache.commons.lang.StringUtils;
-import org.apache.curator.framework.recipes.locks.InterProcessMutex;
 import org.apache.dolphinscheduler.common.Constants;
 import org.apache.dolphinscheduler.common.IStoppable;
-import org.apache.dolphinscheduler.common.enums.ExecutionStatus;
-import org.apache.dolphinscheduler.common.enums.TaskType;
+import org.apache.dolphinscheduler.common.enums.ZKNodeType;
 import org.apache.dolphinscheduler.common.thread.Stopper;
-import org.apache.dolphinscheduler.common.thread.ThreadPoolExecutors;
-import org.apache.dolphinscheduler.common.thread.ThreadUtils;
-import org.apache.dolphinscheduler.common.utils.CollectionUtils;
-import org.apache.dolphinscheduler.common.utils.OSUtils;
-import org.apache.dolphinscheduler.dao.AlertDao;
-import org.apache.dolphinscheduler.dao.entity.TaskInstance;
-import org.apache.dolphinscheduler.server.utils.ProcessUtils;
+import org.apache.dolphinscheduler.remote.NettyRemotingServer;
+import org.apache.dolphinscheduler.remote.command.CommandType;
+import org.apache.dolphinscheduler.remote.config.NettyServerConfig;
 import org.apache.dolphinscheduler.server.worker.config.WorkerConfig;
-import org.apache.dolphinscheduler.server.worker.runner.FetchTaskThread;
-import org.apache.dolphinscheduler.server.zk.ZKWorkerClient;
+import org.apache.dolphinscheduler.server.worker.processor.DBTaskAckProcessor;
+import org.apache.dolphinscheduler.server.worker.processor.DBTaskResponseProcessor;
+import org.apache.dolphinscheduler.server.worker.processor.TaskExecuteProcessor;
+import org.apache.dolphinscheduler.server.worker.processor.TaskKillProcessor;
+import org.apache.dolphinscheduler.server.worker.registry.WorkerRegistry;
+import org.apache.dolphinscheduler.server.worker.runner.RetryReportTaskStatusThread;
+import org.apache.dolphinscheduler.server.worker.runner.WorkerManagerThread;
+import org.apache.dolphinscheduler.service.alert.AlertClientService;
 import org.apache.dolphinscheduler.service.bean.SpringApplicationContext;
-import org.apache.dolphinscheduler.service.process.ProcessService;
-import org.apache.dolphinscheduler.service.queue.ITaskQueue;
-import org.apache.dolphinscheduler.service.queue.TaskQueueFactory;
-import org.apache.dolphinscheduler.service.zk.AbstractZKClient;
+
+import java.util.Set;
+
+import javax.annotation.PostConstruct;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.ComponentScan;
-
-import javax.annotation.PostConstruct;
-import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import org.springframework.context.annotation.FilterType;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 /**
- *  worker server
+ * worker server
  */
-@ComponentScan("org.apache.dolphinscheduler")
+@ComponentScan(value = "org.apache.dolphinscheduler", excludeFilters = {
+        @ComponentScan.Filter(type = FilterType.REGEX, pattern = {
+                "org.apache.dolphinscheduler.server.master.*",
+                "org.apache.dolphinscheduler.server.monitor.*",
+                "org.apache.dolphinscheduler.server.log.*",
+                "org.apache.dolphinscheduler.server.zk.ZKMasterClient",
+                "org.apache.dolphinscheduler.server.registry.ServerNodeManager"
+        })
+})
+@EnableTransactionManagement
 public class WorkerServer implements IStoppable {
 
     /**
@@ -64,68 +68,44 @@ public class WorkerServer implements IStoppable {
      */
     private static final Logger logger = LoggerFactory.getLogger(WorkerServer.class);
 
+    /**
+     * netty remote server
+     */
+    private NettyRemotingServer nettyRemotingServer;
 
     /**
-     *  zk worker client
+     * worker registry
      */
     @Autowired
-    private ZKWorkerClient zkWorkerClient = null;
-
-
-    /**
-     *  process service
-     */
-    @Autowired
-    private ProcessService processService;
+    private WorkerRegistry workerRegistry;
 
     /**
-     *  alert database access
+     * worker config
      */
-    @Autowired
-    private AlertDao alertDao;
-
-    /**
-     * heartbeat thread pool
-     */
-    private ScheduledExecutorService heartbeatWorkerService;
-
-    /**
-     * task queue impl
-     */
-    protected ITaskQueue taskQueue;
-
-    /**
-     * kill executor service
-     */
-    private ExecutorService killExecutorService;
-
-    /**
-     *  fetch task executor service
-     */
-    private ExecutorService fetchTaskExecutorService;
-
-    /**
-     * CountDownLatch latch
-     */
-    private CountDownLatch latch;
-
-    @Value("${server.is-combined-server:false}")
-    private Boolean isCombinedServer;
-
     @Autowired
     private WorkerConfig workerConfig;
 
     /**
-     *  spring application context
-     *  only use it for initialization
+     * spring application context
+     * only use it for initialization
      */
     @Autowired
     private SpringApplicationContext springApplicationContext;
 
     /**
-     * master server startup
+     * alert model netty remote server
+     */
+    private AlertClientService alertClientService;
+
+    @Autowired
+    private RetryReportTaskStatusThread retryReportTaskStatusThread;
+
+    @Autowired
+    private WorkerManagerThread workerManagerThread;
+
+    /**
+     * worker server startup, not use web service
      *
-     * master server not use web service
      * @param args arguments
      */
     public static void main(String[] args) {
@@ -133,75 +113,56 @@ public class WorkerServer implements IStoppable {
         new SpringApplicationBuilder(WorkerServer.class).web(WebApplicationType.NONE).run(args);
     }
 
-
     /**
      * worker server run
      */
     @PostConstruct
-    public void run(){
-        logger.info("start worker server...");
+    public void run() {
+        // alert-server client registry
+        alertClientService = new AlertClientService(workerConfig.getAlertListenHost(), Constants.ALERT_RPC_PORT);
 
-        zkWorkerClient.init();
+        // init remoting server
+        NettyServerConfig serverConfig = new NettyServerConfig();
+        serverConfig.setListenPort(workerConfig.getListenPort());
+        this.nettyRemotingServer = new NettyRemotingServer(serverConfig);
+        this.nettyRemotingServer.registerProcessor(CommandType.TASK_EXECUTE_REQUEST, new TaskExecuteProcessor(alertClientService));
+        this.nettyRemotingServer.registerProcessor(CommandType.TASK_KILL_REQUEST, new TaskKillProcessor());
+        this.nettyRemotingServer.registerProcessor(CommandType.DB_TASK_ACK, new DBTaskAckProcessor());
+        this.nettyRemotingServer.registerProcessor(CommandType.DB_TASK_RESPONSE, new DBTaskResponseProcessor());
+        this.nettyRemotingServer.start();
 
-        this.taskQueue = TaskQueueFactory.getTaskQueueInstance();
+        // worker registry
+        try {
+            this.workerRegistry.registry();
+            this.workerRegistry.getZookeeperRegistryCenter().setStoppable(this);
+            Set<String> workerZkPaths = this.workerRegistry.getWorkerZkPaths();
+            this.workerRegistry.getZookeeperRegistryCenter().getRegisterOperator().handleDeadServer(workerZkPaths, ZKNodeType.WORKER, Constants.DELETE_ZK_OP);
+        } catch (Exception e) {
+            logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
+        }
 
-        this.killExecutorService = ThreadUtils.newDaemonSingleThreadExecutor("Worker-Kill-Thread-Executor");
+        // task execute manager
+        this.workerManagerThread.start();
 
-        this.fetchTaskExecutorService = ThreadUtils.newDaemonSingleThreadExecutor("Worker-Fetch-Thread-Executor");
-
-        heartbeatWorkerService = ThreadUtils.newDaemonThreadScheduledExecutor("Worker-Heartbeat-Thread-Executor", Constants.DEFAUL_WORKER_HEARTBEAT_THREAD_NUM);
-
-        // heartbeat thread implement
-        Runnable heartBeatThread = heartBeatThread();
-
-        zkWorkerClient.setStoppable(this);
-
-        // regular heartbeat
-        // delay 5 seconds, send heartbeat every 30 seconds
-        heartbeatWorkerService.scheduleAtFixedRate(heartBeatThread, 5, workerConfig.getWorkerHeartbeatInterval(), TimeUnit.SECONDS);
-
-        // kill process thread implement
-        Runnable killProcessThread = getKillProcessThread();
-
-        // submit kill process thread
-        killExecutorService.execute(killProcessThread);
-
-        // new fetch task thread
-        FetchTaskThread fetchTaskThread = new FetchTaskThread(zkWorkerClient, processService, taskQueue);
-
-        // submit fetch task thread
-        fetchTaskExecutorService.execute(fetchTaskThread);
+        // retry report task status
+        this.retryReportTaskStatusThread.start();
 
         /**
          * register hooks, which are called before the process exits
          */
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                // worker server exit alert
-                if (zkWorkerClient.getActiveMasterNum() <= 1) {
-                    alertDao.sendServerStopedAlert(1, OSUtils.getHost(), "Worker-Server");
-                }
-                stop("shutdownhook");
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (Stopper.isRunning()) {
+                close("shutdownHook");
             }
         }));
-
-        //let the main thread await
-        latch = new CountDownLatch(1);
-        if (!isCombinedServer) {
-            try {
-                latch.await();
-            } catch (InterruptedException ignore) {
-            }
-        }
     }
 
-    @Override
-    public synchronized void stop(String cause) {
+    public void close(String cause) {
 
         try {
-            //execute only once
-            if(Stopper.isStopped()){
+            // execute only once
+            if (Stopper.isStopped()) {
                 return;
             }
 
@@ -211,180 +172,23 @@ public class WorkerServer implements IStoppable {
             Stopper.stop();
 
             try {
-                //thread sleep 3 seconds for thread quitely stop
+                // thread sleep 3 seconds for thread quitely stop
                 Thread.sleep(3000L);
-            }catch (Exception e){
+            } catch (Exception e) {
                 logger.warn("thread sleep exception", e);
             }
 
-            try {
-                heartbeatWorkerService.shutdownNow();
-            }catch (Exception e){
-                logger.warn("heartbeat service stopped exception");
-            }
-            logger.info("heartbeat service stopped");
-
-            try {
-                ThreadPoolExecutors.getInstance().shutdown();
-            }catch (Exception e){
-                logger.warn("threadpool service stopped exception:{}",e.getMessage());
-            }
-
-            logger.info("threadpool service stopped");
-
-            try {
-                killExecutorService.shutdownNow();
-            }catch (Exception e){
-                logger.warn("worker kill executor service stopped exception:{}",e.getMessage());
-            }
-            logger.info("worker kill executor service stopped");
-
-            try {
-                fetchTaskExecutorService.shutdownNow();
-            }catch (Exception e){
-                logger.warn("worker fetch task service stopped exception:{}",e.getMessage());
-            }
-            logger.info("worker fetch task service stopped");
-
-            try{
-                zkWorkerClient.close();
-            }catch (Exception e){
-                logger.warn("zookeeper service stopped exception:{}",e.getMessage());
-            }
-            latch.countDown();
-            logger.info("zookeeper service stopped");
-
+            // close
+            this.nettyRemotingServer.close();
+            this.workerRegistry.unRegistry();
+            this.alertClientService.close();
         } catch (Exception e) {
             logger.error("worker server stop exception ", e);
-            System.exit(-1);
         }
     }
 
-
-    /**
-     * heartbeat thread implement
-     *
-     * @return
-     */
-    private Runnable heartBeatThread(){
-        logger.info("start worker heart beat thread...");
-        Runnable heartBeatThread  = new Runnable() {
-            @Override
-            public void run() {
-                // send heartbeat to zk
-                if (StringUtils.isEmpty(zkWorkerClient.getWorkerZNode())){
-                    logger.error("worker send heartbeat to zk failed");
-                }
-
-                zkWorkerClient.heartBeatForZk(zkWorkerClient.getWorkerZNode() , Constants.WORKER_PREFIX);
-            }
-        };
-        return heartBeatThread;
+    @Override
+    public void stop(String cause) {
+        close(cause);
     }
-
-
-    /**
-     * kill process thread implement
-     *
-     * @return kill process thread
-     */
-    private Runnable getKillProcessThread(){
-        Runnable killProcessThread  = new Runnable() {
-            @Override
-            public void run() {
-                logger.info("start listening kill process thread...");
-                while (Stopper.isRunning()){
-                    Set<String> taskInfoSet = taskQueue.smembers(Constants.DOLPHINSCHEDULER_TASKS_KILL);
-                    if (CollectionUtils.isNotEmpty(taskInfoSet)){
-                        for (String taskInfo : taskInfoSet){
-                            killTask(taskInfo, processService);
-                            removeKillInfoFromQueue(taskInfo);
-                        }
-                    }
-                    try {
-                        Thread.sleep(Constants.SLEEP_TIME_MILLIS);
-                    } catch (InterruptedException e) {
-                        logger.error("interrupted exception",e);
-                        Thread.currentThread().interrupt();
-                    }
-                }
-            }
-        };
-        return killProcessThread;
-    }
-
-    /**
-     * kill task
-     *
-     * @param taskInfo  task info
-     * @param pd        process dao
-     */
-    private void killTask(String taskInfo, ProcessService pd) {
-        logger.info("get one kill command from tasks kill queue: " + taskInfo);
-        String[] taskInfoArray = taskInfo.split("-");
-        if(taskInfoArray.length != 2){
-            logger.error("error format kill info: " + taskInfo);
-            return ;
-        }
-        String host = taskInfoArray[0];
-        int taskInstanceId = Integer.parseInt(taskInfoArray[1]);
-        TaskInstance taskInstance = pd.getTaskInstanceDetailByTaskId(taskInstanceId);
-        if(taskInstance == null){
-            logger.error("cannot find the kill task :" + taskInfo);
-            return;
-        }
-
-        if(host.equals(Constants.NULL) && StringUtils.isEmpty(taskInstance.getHost())){
-            deleteTaskFromQueue(taskInstance, pd);
-            taskInstance.setState(ExecutionStatus.KILL);
-            pd.saveTaskInstance(taskInstance);
-        }else{
-            if(taskInstance.getTaskType().equals(TaskType.DEPENDENT.toString())){
-                taskInstance.setState(ExecutionStatus.KILL);
-                pd.saveTaskInstance(taskInstance);
-            }else if(!taskInstance.getState().typeIsFinished()){
-                ProcessUtils.kill(taskInstance);
-            }else{
-                logger.info("the task aleady finish: task id: " + taskInstance.getId()
-                        + " state: " + taskInstance.getState().toString());
-            }
-        }
-    }
-
-    /**
-     * delete task from queue
-     *
-     * @param taskInstance
-     * @param pd process dao
-     */
-    private void deleteTaskFromQueue(TaskInstance taskInstance, ProcessService pd){
-        // creating distributed locks, lock path /dolphinscheduler/lock/worker
-        InterProcessMutex mutex = null;
-        logger.info("delete task from tasks queue: " + taskInstance.getId());
-
-        try {
-            mutex = zkWorkerClient.acquireZkLock(zkWorkerClient.getZkClient(),
-                    zkWorkerClient.getWorkerLockPath());
-            if(pd.checkTaskExistsInTaskQueue(taskInstance)){
-                String taskQueueStr = pd.taskZkInfo(taskInstance);
-                taskQueue.removeNode(Constants.DOLPHINSCHEDULER_TASKS_QUEUE, taskQueueStr);
-            }
-
-        } catch (Exception e){
-            logger.error("remove task thread failure" ,e);
-        }finally {
-            AbstractZKClient.releaseMutex(mutex);
-        }
-    }
-
-    /**
-     * remove Kill info from queue
-     *
-     * @param taskInfo task info
-     */
-    private void removeKillInfoFromQueue(String taskInfo){
-        taskQueue.srem(Constants.DOLPHINSCHEDULER_TASKS_KILL,taskInfo);
-    }
-
 }
-

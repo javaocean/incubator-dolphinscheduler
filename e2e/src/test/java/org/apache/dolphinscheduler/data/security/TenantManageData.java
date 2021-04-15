@@ -20,36 +20,12 @@
  */
 package org.apache.dolphinscheduler.data.security;
 
-import org.apache.dolphinscheduler.data.LoginData;
+import org.apache.dolphinscheduler.util.YmlReader;
 
 public class TenantManageData {
-    /**
-     * Tenant URL
-     */
-    public static final String TENANAT_URL =  LoginData.URL + "/ui/#/security/tenant";
-
-    /**
-     * Tenant Code
-     */
-    public static final String TENANAT_CODE = "dolphinscheduler_tenant_code2";
-
-    /**
-     * Tenant Name
-     */
-    public static final String TENANAT_NAME = "dolphinscheduler_tenant_Name";
-
-    /**
-     * Queue
-     */
-    public static final String QUEUE = "default";
-
-    /**
-     * Description
-     */
-    public static final String DESCRIPTION = "creat tenant test";
-
-    public static final String TENANAT_MANAGE = "Tenant Manage - DolphinScheduler";
-
-
-
+    public String getTenantData(String param) {
+        YmlReader ymlReader = new YmlReader();
+        String tenantData = ymlReader.getDataYml("testData/security_zh_cn", "tenantManage", param);
+        return  tenantData;
+    }
 }

@@ -14,28 +14,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.server.log;
 
-import io.netty.channel.Channel;
+import org.apache.dolphinscheduler.common.utils.IOUtils;
+import org.apache.dolphinscheduler.common.utils.JSONUtils;
+import org.apache.dolphinscheduler.common.utils.LoggerUtils;
 import org.apache.dolphinscheduler.remote.command.Command;
 import org.apache.dolphinscheduler.remote.command.CommandType;
-import org.apache.dolphinscheduler.remote.command.log.*;
+import org.apache.dolphinscheduler.remote.command.log.GetLogBytesRequestCommand;
+import org.apache.dolphinscheduler.remote.command.log.GetLogBytesResponseCommand;
+import org.apache.dolphinscheduler.remote.command.log.RemoveTaskLogRequestCommand;
+import org.apache.dolphinscheduler.remote.command.log.RemoveTaskLogResponseCommand;
+import org.apache.dolphinscheduler.remote.command.log.RollViewLogRequestCommand;
+import org.apache.dolphinscheduler.remote.command.log.RollViewLogResponseCommand;
+import org.apache.dolphinscheduler.remote.command.log.ViewLogRequestCommand;
+import org.apache.dolphinscheduler.remote.command.log.ViewLogResponseCommand;
 import org.apache.dolphinscheduler.remote.processor.NettyRequestProcessor;
-import org.apache.dolphinscheduler.remote.utils.FastJsonSerializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.dolphinscheduler.remote.utils.Constants;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.netty.channel.Channel;
 
 /**
  *  logger request process logic
@@ -44,10 +62,10 @@ public class LoggerRequestProcessor implements NettyRequestProcessor {
 
     private final Logger logger = LoggerFactory.getLogger(LoggerRequestProcessor.class);
 
-    private final ThreadPoolExecutor executor;
+    private final ExecutorService executor;
 
-    public LoggerRequestProcessor(){
-        this.executor = new ThreadPoolExecutor(4, 4, 10, TimeUnit.SECONDS, new LinkedBlockingQueue<>(100));
+    public LoggerRequestProcessor() {
+        this.executor = Executors.newFixedThreadPool(Constants.CPUS * 2 + 1);
     }
 
     @Override
@@ -58,39 +76,58 @@ public class LoggerRequestProcessor implements NettyRequestProcessor {
          * reuqest task log command type
          */
         final CommandType commandType = command.getType();
-        switch (commandType){
+        switch (commandType) {
             case GET_LOG_BYTES_REQUEST:
-                GetLogBytesRequestCommand getLogRequest = FastJsonSerializer.deserialize(
+                GetLogBytesRequestCommand getLogRequest = JSONUtils.parseObject(
                         command.getBody(), GetLogBytesRequestCommand.class);
                 byte[] bytes = getFileContentBytes(getLogRequest.getPath());
                 GetLogBytesResponseCommand getLogResponse = new GetLogBytesResponseCommand(bytes);
                 channel.writeAndFlush(getLogResponse.convert2Command(command.getOpaque()));
                 break;
             case VIEW_WHOLE_LOG_REQUEST:
-                ViewLogRequestCommand viewLogRequest = FastJsonSerializer.deserialize(
+                ViewLogRequestCommand viewLogRequest = JSONUtils.parseObject(
                         command.getBody(), ViewLogRequestCommand.class);
-                String msg = readWholeFileContent(viewLogRequest.getPath());
+                String msg = LoggerUtils.readWholeFileContent(viewLogRequest.getPath());
                 ViewLogResponseCommand viewLogResponse = new ViewLogResponseCommand(msg);
                 channel.writeAndFlush(viewLogResponse.convert2Command(command.getOpaque()));
                 break;
             case ROLL_VIEW_LOG_REQUEST:
-                RollViewLogRequestCommand rollViewLogRequest = FastJsonSerializer.deserialize(
+                RollViewLogRequestCommand rollViewLogRequest = JSONUtils.parseObject(
                         command.getBody(), RollViewLogRequestCommand.class);
                 List<String> lines = readPartFileContent(rollViewLogRequest.getPath(),
                         rollViewLogRequest.getSkipLineNum(), rollViewLogRequest.getLimit());
                 StringBuilder builder = new StringBuilder();
-                for (String line : lines){
+                for (String line : lines) {
                     builder.append(line + "\r\n");
                 }
                 RollViewLogResponseCommand rollViewLogRequestResponse = new RollViewLogResponseCommand(builder.toString());
                 channel.writeAndFlush(rollViewLogRequestResponse.convert2Command(command.getOpaque()));
+                break;
+            case REMOVE_TAK_LOG_REQUEST:
+                RemoveTaskLogRequestCommand removeTaskLogRequest = JSONUtils.parseObject(
+                        command.getBody(), RemoveTaskLogRequestCommand.class);
+
+                String taskLogPath = removeTaskLogRequest.getPath();
+
+                File taskLogFile = new File(taskLogPath);
+                Boolean status = true;
+                try {
+                    if (taskLogFile.exists()) {
+                        status = taskLogFile.delete();
+                    }
+                } catch (Exception e) {
+                    status = false;
+                }
+
+                RemoveTaskLogResponseCommand removeTaskLogResponse = new RemoveTaskLogResponseCommand(status);
+                channel.writeAndFlush(removeTaskLogResponse.convert2Command(command.getOpaque()));
                 break;
             default:
                 throw new IllegalArgumentException("unknown commandType");
         }
     }
 
-    public ExecutorService getExecutor(){
+    public ExecutorService getExecutor() {
         return this.executor;
     }
 
@@ -101,7 +138,7 @@ public class LoggerRequestProcessor implements NettyRequestProcessor {
      * @return byte array of file
      * @throws Exception exception
      */
-    private byte[] getFileContentBytes(String filePath){
+    private byte[] getFileContentBytes(String filePath) {
         InputStream in = null;
         ByteArrayOutputStream bos = null;
         try {
@@ -113,19 +150,11 @@ public class LoggerRequestProcessor implements NettyRequestProcessor {
                 bos.write(buf, 0, len);
             }
             return bos.toByteArray();
-        }catch (IOException e){
+        } catch (IOException e) {
             logger.error("get file bytes error",e);
-        }finally {
-            if (bos != null){
-                try {
-                    bos.close();
-                } catch (IOException ignore) {}
-            }
-            if (in != null){
-                try {
-                    in.close();
-                } catch (IOException ignore) {}
-            }
+        } finally {
+            IOUtils.closeQuietly(bos);
+            IOUtils.closeQuietly(in);
         }
         return new byte[0];
     }
@@ -140,40 +169,18 @@ public class LoggerRequestProcessor implements NettyRequestProcessor {
      */
     private List<String> readPartFileContent(String filePath,
                                             int skipLine,
-                                            int limit){
-        try (Stream<String> stream = Files.lines(Paths.get(filePath))) {
-            return stream.skip(skipLine).limit(limit).collect(Collectors.toList());
-        } catch (IOException e) {
-            logger.error("read file error",e);
+                                            int limit) {
+        File file = new File(filePath);
+        if (file.exists() && file.isFile()) {
+            try (Stream<String> stream = Files.lines(Paths.get(filePath))) {
+                return stream.skip(skipLine).limit(limit).collect(Collectors.toList());
+            } catch (IOException e) {
+                logger.error("read file error",e);
+            }
+        } else {
+            logger.info("file path: {} not exists", filePath);
         }
-        return Collections.EMPTY_LIST;
+        return Collections.emptyList();
     }
 
-    /**
-     * read whole file content
-     *
-     * @param filePath file path
-     * @return whole file content
-     */
-    private String readWholeFileContent(String filePath){
-        BufferedReader br = null;
-        String line;
-        StringBuilder sb = new StringBuilder();
-        try {
-            br = new BufferedReader(new InputStreamReader(new FileInputStream(filePath)));
-            while ((line = br.readLine()) != null){
-                sb.append(line + "\r\n");
-            }
-            return sb.toString();
-        }catch (IOException e){
-            logger.error("read file error",e);
-        }finally {
-            try {
-                if (br != null){
-                    br.close();
-                }
-            } catch (IOException ignore) {}
-        }
-        return "";
-    }
 }

@@ -14,206 +14,228 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.common.task.flink;
 
 import org.apache.dolphinscheduler.common.enums.ProgramType;
 import org.apache.dolphinscheduler.common.process.ResourceInfo;
 import org.apache.dolphinscheduler.common.task.AbstractParameters;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
- * spark parameters
+ * flink parameters
  */
 public class FlinkParameters extends AbstractParameters {
 
-  /**
-   * major jar
-   */
-  private ResourceInfo mainJar;
+    /**
+     * major jar
+     */
+    private ResourceInfo mainJar;
 
-  /**
-   * major class
-   */
-  private String mainClass;
+    /**
+     * major class
+     */
+    private String mainClass;
 
-  /**
-   * deploy mode  yarn-cluster  yarn-client  yarn-local
-    */
-  private String deployMode;
+    /**
+     * deploy mode  yarn-cluster yarn-local
+     */
+    private String deployMode;
 
-  /**
-   * arguments
-   */
-  private String mainArgs;
+    /**
+     * arguments
+     */
+    private String mainArgs;
 
-  /**
-   * slot个数
-   */
-  private int slot;
+    /**
+     * slot count
+     */
+    private int slot;
 
-  /**
-   *Yarn application的名字
-   */
+    /**
+     * parallelism
+     */
+    private int parallelism;
 
-  private String appName;
+    /**
+     * yarn application name
+     */
+    private String appName;
 
-  /**
-   * taskManager 数量
-   */
-  private int  taskManager;
+    /**
+     * taskManager count
+     */
+    private int taskManager;
 
-  /**
-   * jobManagerMemory 内存大小
-   */
-  private String  jobManagerMemory ;
+    /**
+     * job manager memory
+     */
+    private String jobManagerMemory;
 
-  /**
-   * taskManagerMemory内存大小
-   */
-  private String  taskManagerMemory;
+    /**
+     * task manager memory
+     */
+    private String taskManagerMemory;
 
-  /**
-   * resource list
-   */
-  private List<ResourceInfo> resourceList;
+    /**
+     * resource list
+     */
+    private List<ResourceInfo> resourceList = new ArrayList<>();
 
-  /**
-   * The YARN queue to submit to
-   */
-  private String queue;
+    /**
+     * The YARN queue to submit to
+     */
+    private String queue;
 
-  /**
-   * other arguments
-   */
-  private String others;
+    /**
+     * other arguments
+     */
+    private String others;
 
-  /**
-   * program type
-   * 0 JAVA,1 SCALA,2 PYTHON
-   */
-  private ProgramType programType;
+    /**
+     * flink version
+     */
+    private String flinkVersion;
 
-  public ResourceInfo getMainJar() {
-    return mainJar;
-  }
+    /**
+     * program type
+     * 0 JAVA,1 SCALA,2 PYTHON
+     */
+    private ProgramType programType;
 
-  public void setMainJar(ResourceInfo mainJar) {
-    this.mainJar = mainJar;
-  }
-
-  public String getMainClass() {
-    return mainClass;
-  }
-
-  public void setMainClass(String mainClass) {
-    this.mainClass = mainClass;
-  }
-
-  public String getDeployMode() {
-    return deployMode;
-  }
-
-  public void setDeployMode(String deployMode) {
-    this.deployMode = deployMode;
-  }
-
-  public String getMainArgs() {
-    return mainArgs;
-  }
-
-  public void setMainArgs(String mainArgs) {
-    this.mainArgs = mainArgs;
-  }
-
-  public int getSlot() {
-    return slot;
-  }
-
-  public void setSlot(int slot) {
-    this.slot = slot;
-  }
-
-  public String getAppName() {
-    return appName;
-  }
-
-  public void setAppName(String appName) {
-    this.appName = appName;
-  }
-
-  public int getTaskManager() {
-    return taskManager;
-  }
-
-  public void setTaskManager(int taskManager) {
-    this.taskManager = taskManager;
-  }
-
-  public String getJobManagerMemory() {
-    return jobManagerMemory;
-  }
-
-  public void setJobManagerMemory(String jobManagerMemory) {
-    this.jobManagerMemory = jobManagerMemory;
-  }
-
-  public String getTaskManagerMemory() {
-    return taskManagerMemory;
-  }
-
-  public void setTaskManagerMemory(String taskManagerMemory) {
-    this.taskManagerMemory = taskManagerMemory;
-  }
-
-  public String getQueue() {
-    return queue;
-  }
-
-  public void setQueue(String queue) {
-    this.queue = queue;
-  }
-
-  public List<ResourceInfo> getResourceList() {
-    return resourceList;
-  }
-
-  public void setResourceList(List<ResourceInfo> resourceList) {
-    this.resourceList = resourceList;
-  }
-
-  public String getOthers() {
-    return others;
-  }
-
-  public void setOthers(String others) {
-    this.others = others;
-  }
-
-  public ProgramType getProgramType() {
-    return programType;
-  }
-
-  public void setProgramType(ProgramType programType) {
-    this.programType = programType;
-  }
-
-  @Override
-  public boolean checkParameters() {
-    return mainJar != null && programType != null;
-  }
-
-
-  @Override
-  public List<String> getResourceFilesList() {
-    if(resourceList !=null ) {
-      this.resourceList.add(mainJar);
-      return resourceList.stream()
-              .map(p -> p.getRes()).collect(Collectors.toList());
+    public ResourceInfo getMainJar() {
+        return mainJar;
     }
-    return null;
-  }
 
+    public void setMainJar(ResourceInfo mainJar) {
+        this.mainJar = mainJar;
+    }
+
+    public String getMainClass() {
+        return mainClass;
+    }
+
+    public void setMainClass(String mainClass) {
+        this.mainClass = mainClass;
+    }
+
+    public String getDeployMode() {
+        return deployMode;
+    }
+
+    public void setDeployMode(String deployMode) {
+        this.deployMode = deployMode;
+    }
+
+    public String getMainArgs() {
+        return mainArgs;
+    }
+
+    public void setMainArgs(String mainArgs) {
+        this.mainArgs = mainArgs;
+    }
+
+    public int getSlot() {
+        return slot;
+    }
+
+    public void setSlot(int slot) {
+        this.slot = slot;
+    }
+
+    public int getParallelism() {
+        return parallelism;
+    }
+
+    public void setParallelism(int parallelism) {
+        this.parallelism = parallelism;
+    }
+
+    public String getAppName() {
+        return appName;
+    }
+
+    public void setAppName(String appName) {
+        this.appName = appName;
+    }
+
+    public int getTaskManager() {
+        return taskManager;
+    }
+
+    public void setTaskManager(int taskManager) {
+        this.taskManager = taskManager;
+    }
+
+    public String getJobManagerMemory() {
+        return jobManagerMemory;
+    }
+
+    public void setJobManagerMemory(String jobManagerMemory) {
+        this.jobManagerMemory = jobManagerMemory;
+    }
+
+    public String getTaskManagerMemory() {
+        return taskManagerMemory;
+    }
+
+    public void setTaskManagerMemory(String taskManagerMemory) {
+        this.taskManagerMemory = taskManagerMemory;
+    }
+
+    public String getQueue() {
+        return queue;
+    }
+
+    public void setQueue(String queue) {
+        this.queue = queue;
+    }
+
+    public List<ResourceInfo> getResourceList() {
+        return resourceList;
+    }
+
+    public void setResourceList(List<ResourceInfo> resourceList) {
+        this.resourceList = resourceList;
+    }
+
+    public String getOthers() {
+        return others;
+    }
+
+    public void setOthers(String others) {
+        this.others = others;
+    }
+
+    public ProgramType getProgramType() {
+        return programType;
+    }
+
+    public void setProgramType(ProgramType programType) {
+        this.programType = programType;
+    }
+
+    public String getFlinkVersion() {
+        return flinkVersion;
+    }
+
+    public void setFlinkVersion(String flinkVersion) {
+        this.flinkVersion = flinkVersion;
+    }
+
+    @Override
+    public boolean checkParameters() {
+        return mainJar != null && programType != null;
+    }
+
+    @Override
+    public List<ResourceInfo> getResourceFilesList() {
+        if (mainJar != null && !resourceList.contains(mainJar)) {
+            resourceList.add(mainJar);
+        }
+        return resourceList;
+    }
 
 }

@@ -16,6 +16,9 @@
  */
 package org.apache.dolphinscheduler.dao.entity;
 
+import org.apache.dolphinscheduler.common.model.TaskNode;
+import org.apache.dolphinscheduler.common.utils.JSONUtils;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -29,11 +32,50 @@ public class TaskInstanceTest {
         TaskInstance taskInstance = new TaskInstance();
 
         //sub process
-        taskInstance.setTaskType("sub process");
+        taskInstance.setTaskType("SUB_PROCESS");
         Assert.assertTrue(taskInstance.isSubProcess());
 
         //not sub process
-        taskInstance.setTaskType("http");
+        taskInstance.setTaskType("HTTP");
         Assert.assertFalse(taskInstance.isSubProcess());
+
+        //sub process
+        taskInstance.setTaskType("CONDITIONS");
+        Assert.assertTrue(taskInstance.isConditionsTask());
+
+        //sub process
+        taskInstance.setTaskType("DEPENDENT");
+        Assert.assertTrue(taskInstance.isDependTask());
+    }
+
+    /**
+     * test for TaskInstance.getDependence
+     */
+    @Test
+    public void testTaskInstanceGetDependence() {
+        TaskInstance taskInstance;
+        TaskNode taskNode;
+
+        taskInstance = new TaskInstance();
+        taskInstance.setTaskJson(null);
+        Assert.assertNull(taskInstance.getDependency());
+
+        taskInstance = new TaskInstance();
+        taskNode = new TaskNode();
+        taskNode.setDependence(null);
+        taskInstance.setTaskJson(JSONUtils.toJsonString(taskNode));
+        Assert.assertNull(taskInstance.getDependency());
+
+        taskInstance = new TaskInstance();
+        taskNode = new TaskNode();
+        // expect a JSON here, and will be unwrap when toJsonString
+        taskNode.setDependence("\"A\"");
+        taskInstance.setTaskJson(JSONUtils.toJsonString(taskNode));
+        Assert.assertEquals("A", taskInstance.getDependency());
+
+        taskInstance = new TaskInstance();
+        taskInstance.setTaskJson(null);
+        taskInstance.setDependency("{}");
+        Assert.assertEquals("{}", taskInstance.getDependency());
     }
 }

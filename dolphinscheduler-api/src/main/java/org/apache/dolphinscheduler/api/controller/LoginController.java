@@ -14,38 +14,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.api.controller;
 
+import static org.apache.dolphinscheduler.api.enums.Status.IP_IS_EMPTY;
+import static org.apache.dolphinscheduler.api.enums.Status.SIGN_OUT_ERROR;
+import static org.apache.dolphinscheduler.api.enums.Status.USER_LOGIN_FAILURE;
 
 import org.apache.dolphinscheduler.api.enums.Status;
+import org.apache.dolphinscheduler.api.exceptions.ApiException;
 import org.apache.dolphinscheduler.api.security.Authenticator;
 import org.apache.dolphinscheduler.api.service.SessionService;
 import org.apache.dolphinscheduler.api.utils.Result;
 import org.apache.dolphinscheduler.common.Constants;
 import org.apache.dolphinscheduler.common.utils.StringUtils;
 import org.apache.dolphinscheduler.dao.entity.User;
-import io.swagger.annotations.*;
+
 import org.apache.commons.httpclient.HttpStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-import springfox.documentation.annotations.ApiIgnore;
+
+import java.util.Map;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import static org.apache.dolphinscheduler.api.enums.Status.*;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
+import springfox.documentation.annotations.ApiIgnore;
 
 /**
- * user login controller
- *
- * swagger bootstrap ui docs refer : https://doc.xiaominfo.com/guide/enh-func.html
+ * login controller
  */
-@Api(tags = "LOGIN_TAG", position = 1)
+@Api(tags = "LOGIN_TAG")
 @RestController
 @RequestMapping("")
 public class LoginController extends BaseController {
@@ -63,81 +74,71 @@ public class LoginController extends BaseController {
     /**
      * login
      *
-     * @param userName user name
+     * @param userName     user name
      * @param userPassword user password
-     * @param request request
-     * @param response  response
+     * @param request      request
+     * @param response     response
      * @return login result
      */
-    @ApiOperation(value = "login", notes= "LOGIN_NOTES")
+    @ApiOperation(value = "login", notes = "LOGIN_NOTES")
     @ApiImplicitParams({
             @ApiImplicitParam(name = "userName", value = "USER_NAME", required = true, dataType = "String"),
-            @ApiImplicitParam(name = "userPassword", value = "USER_PASSWORD", required = true, dataType ="String")
+            @ApiImplicitParam(name = "userPassword", value = "USER_PASSWORD", required = true, dataType = "String")
     })
     @PostMapping(value = "/login")
+    @ApiException(USER_LOGIN_FAILURE)
     public Result login(@RequestParam(value = "userName") String userName,
                         @RequestParam(value = "userPassword") String userPassword,
                         HttpServletRequest request,
                         HttpServletResponse response) {
+        logger.info("login user name: {} ", userName);
 
-        try {
-            logger.info("login user name: {} ", userName);
-
-            //user name check
-            if (StringUtils.isEmpty(userName)) {
-                return error(Status.USER_NAME_NULL.getCode(),
-                        Status.USER_NAME_NULL.getMsg());
-            }
-
-            // user ip check
-            String ip = getClientIpAddress(request);
-            if (StringUtils.isEmpty(ip)) {
-                return error(IP_IS_EMPTY.getCode(), IP_IS_EMPTY.getMsg());
-            }
-
-            // verify username and password
-            Result<Map<String, String>> result = authenticator.authenticate(userName, userPassword, ip);
-            if (result.getCode() != Status.SUCCESS.getCode()) {
-                return result;
-            }
-
-            response.setStatus(HttpStatus.SC_OK);
-            Map<String, String> cookieMap = result.getData();
-            for (Map.Entry<String, String> cookieEntry : cookieMap.entrySet()) {
-                Cookie cookie = new Cookie(cookieEntry.getKey(), cookieEntry.getValue());
-                cookie.setHttpOnly(true);
-                response.addCookie(cookie);
-            }
-
-            return result;
-        } catch (Exception e) {
-            logger.error(USER_LOGIN_FAILURE.getMsg(),e);
-            return error(USER_LOGIN_FAILURE.getCode(), USER_LOGIN_FAILURE.getMsg());
+        //user name check
+        if (StringUtils.isEmpty(userName)) {
+            return error(Status.USER_NAME_NULL.getCode(),
+                    Status.USER_NAME_NULL.getMsg());
         }
+
+        // user ip check
+        String ip = getClientIpAddress(request);
+        if (StringUtils.isEmpty(ip)) {
+            return error(IP_IS_EMPTY.getCode(), IP_IS_EMPTY.getMsg());
+        }
+
+        // verify username and password
+        Result<Map<String, String>> result = authenticator.authenticate(userName, userPassword, ip);
+        if (result.getCode() != Status.SUCCESS.getCode()) {
+            return result;
+        }
+
+        response.setStatus(HttpStatus.SC_OK);
+        Map<String, String> cookieMap = result.getData();
+        for (Map.Entry<String, String> cookieEntry : cookieMap.entrySet()) {
+            Cookie cookie = new Cookie(cookieEntry.getKey(), cookieEntry.getValue());
+            cookie.setHttpOnly(true);
+            response.addCookie(cookie);
+        }
+
+        return result;
     }
 
     /**
      * sign out
      *
      * @param loginUser login user
-     * @param request  request
+     * @param request   request
      * @return sign out result
      */
     @ApiOperation(value = "signOut", notes = "SIGNOUT_NOTES")
     @PostMapping(value = "/signOut")
+    @ApiException(SIGN_OUT_ERROR)
     public Result signOut(@ApiIgnore @RequestAttribute(value = Constants.SESSION_USER) User loginUser,
                           HttpServletRequest request) {
-
-        try {
-            logger.info("login user:{} sign out", loginUser.getUserName());
-            String ip = getClientIpAddress(request);
-            sessionService.signOut(ip, loginUser);
-            //clear session
-            request.removeAttribute(Constants.SESSION_USER);
-            return success();
-        } catch (Exception e) {
-            logger.error(SIGN_OUT_ERROR.getMsg(),e);
-            return error(SIGN_OUT_ERROR.getCode(), SIGN_OUT_ERROR.getMsg());
-        }
+        logger.info("login user:{} sign out", loginUser.getUserName());
+        String ip = getClientIpAddress(request);
+        sessionService.signOut(ip, loginUser);
+        //clear session
+        request.removeAttribute(Constants.SESSION_USER);
+        return success();
     }
 }

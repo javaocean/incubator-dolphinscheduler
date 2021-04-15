@@ -14,24 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.dolphinscheduler.api.service;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+
 import org.apache.dolphinscheduler.api.enums.Status;
+import org.apache.dolphinscheduler.api.service.impl.AlertGroupServiceImpl;
 import org.apache.dolphinscheduler.api.utils.PageInfo;
-import org.apache.dolphinscheduler.api.utils.Result;
 import org.apache.dolphinscheduler.common.Constants;
-import org.apache.dolphinscheduler.common.enums.AlertType;
 import org.apache.dolphinscheduler.common.enums.UserType;
 import org.apache.dolphinscheduler.common.utils.CollectionUtils;
 import org.apache.dolphinscheduler.dao.entity.AlertGroup;
 import org.apache.dolphinscheduler.dao.entity.User;
 import org.apache.dolphinscheduler.dao.mapper.AlertGroupMapper;
-import org.apache.dolphinscheduler.dao.mapper.UserAlertGroupMapper;
-import org.junit.After;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -41,152 +44,129 @@ import org.mockito.junit.MockitoJUnitRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-
+/**
+ * alert group service test
+ */
 @RunWith(MockitoJUnitRunner.class)
 public class AlertGroupServiceTest {
 
     private static final Logger logger = LoggerFactory.getLogger(AlertGroupServiceTest.class);
 
     @InjectMocks
-    private AlertGroupService alertGroupService;
+    private AlertGroupServiceImpl alertGroupService;
+
     @Mock
     private AlertGroupMapper alertGroupMapper;
-    @Mock
-    private UserAlertGroupMapper userAlertGroupMapper;
 
     private String groupName = "AlertGroupServiceTest";
 
-    @Before
-    public void setUp() {
-    }
-
-
-    @After
-    public void after(){
-
-    }
-
-
-
     @Test
-    public  void testQueryAlertgroup(){
+    public void testQueryAlertGroup() {
 
         Mockito.when(alertGroupMapper.queryAllGroupList()).thenReturn(getList());
-        HashMap<String, Object> result= alertGroupService.queryAlertgroup();
+        Map<String, Object> result = alertGroupService.queryAlertgroup();
         logger.info(result.toString());
         List<AlertGroup> alertGroups = (List<AlertGroup>) result.get(Constants.DATA_LIST);
         Assert.assertTrue(CollectionUtils.isNotEmpty(alertGroups));
     }
+
     @Test
-    public  void testListPaging(){
-        IPage<AlertGroup> page = new Page<>(1,10);
+    public void testListPaging() {
+        IPage<AlertGroup> page = new Page<>(1, 10);
         page.setTotal(1L);
         page.setRecords(getList());
-        Mockito.when(alertGroupMapper.queryAlertGroupPage(any(Page.class),eq(groupName))).thenReturn(page);
+        Mockito.when(alertGroupMapper.queryAlertGroupPage(any(Page.class), eq(groupName))).thenReturn(page);
         User user = new User();
         // no operate
-        Map<String, Object> result = alertGroupService.listPaging(user,groupName,1,10);
+        Map<String, Object> result = alertGroupService.listPaging(user, groupName, 1, 10);
         logger.info(result.toString());
-        Assert.assertEquals(Status.USER_NO_OPERATION_PERM,result.get(Constants.STATUS));
+        Assert.assertEquals(Status.USER_NO_OPERATION_PERM, result.get(Constants.STATUS));
         //success
         user.setUserType(UserType.ADMIN_USER);
-        result = alertGroupService.listPaging(user,groupName,1,10);
+        result = alertGroupService.listPaging(user, groupName, 1, 10);
         logger.info(result.toString());
         PageInfo<AlertGroup> pageInfo = (PageInfo<AlertGroup>) result.get(Constants.DATA_LIST);
         Assert.assertTrue(CollectionUtils.isNotEmpty(pageInfo.getLists()));
 
     }
-    @Test
-    public  void testCreateAlertgroup(){
 
+    @Test
+    public void testCreateAlertgroup() {
 
         Mockito.when(alertGroupMapper.insert(any(AlertGroup.class))).thenReturn(2);
         User user = new User();
         //no operate
-        Map<String, Object>  result = alertGroupService.createAlertgroup(user,groupName, AlertType.EMAIL,groupName);
+        Map<String, Object> result = alertGroupService.createAlertgroup(user, groupName, groupName, null);
         logger.info(result.toString());
-        Assert.assertEquals(Status.USER_NO_OPERATION_PERM,result.get(Constants.STATUS));
+        Assert.assertEquals(Status.USER_NO_OPERATION_PERM, result.get(Constants.STATUS));
         user.setUserType(UserType.ADMIN_USER);
         //success
-        result = alertGroupService.createAlertgroup(user,groupName, AlertType.EMAIL,groupName);
+        result = alertGroupService.createAlertgroup(user, groupName, groupName, null);
         logger.info(result.toString());
-        Assert.assertEquals(Status.SUCCESS,result.get(Constants.STATUS));
+        Assert.assertEquals(Status.SUCCESS, result.get(Constants.STATUS));
     }
+
     @Test
-    public  void testUpdateAlertgroup(){
+    public void testUpdateAlertgroup() {
 
         User user = new User();
         // no operate
-        Map<String, Object>  result = alertGroupService.updateAlertgroup(user,1,groupName, AlertType.SMS,groupName);
+        Map<String, Object> result = alertGroupService.updateAlertgroup(user, 1, groupName, groupName, null);
         logger.info(result.toString());
-        Assert.assertEquals(Status.USER_NO_OPERATION_PERM,result.get(Constants.STATUS));
+        Assert.assertEquals(Status.USER_NO_OPERATION_PERM, result.get(Constants.STATUS));
         user.setUserType(UserType.ADMIN_USER);
         // not exist
-        result = alertGroupService.updateAlertgroup(user,1,groupName, AlertType.SMS,groupName);
+        result = alertGroupService.updateAlertgroup(user, 1, groupName, groupName, null);
         logger.info(result.toString());
-        Assert.assertEquals(Status.ALERT_GROUP_NOT_EXIST,result.get(Constants.STATUS));
+        Assert.assertEquals(Status.ALERT_GROUP_NOT_EXIST, result.get(Constants.STATUS));
         //success
         Mockito.when(alertGroupMapper.selectById(2)).thenReturn(getEntity());
-        result = alertGroupService.updateAlertgroup(user,2,groupName, AlertType.SMS,groupName);
+        result = alertGroupService.updateAlertgroup(user, 2, groupName, groupName, null);
         logger.info(result.toString());
-        Assert.assertEquals(Status.SUCCESS,result.get(Constants.STATUS));
+        Assert.assertEquals(Status.SUCCESS, result.get(Constants.STATUS));
 
     }
+
     @Test
-    public  void testDelAlertgroupById(){
+    public void testDelAlertgroupById() {
 
         User user = new User();
         // no operate
-        Map<String, Object>  result = alertGroupService.delAlertgroupById(user,1);
+        Map<String, Object> result = alertGroupService.delAlertgroupById(user, 1);
         logger.info(result.toString());
-        Assert.assertEquals(Status.USER_NO_OPERATION_PERM,result.get(Constants.STATUS));
+        Assert.assertEquals(Status.USER_NO_OPERATION_PERM, result.get(Constants.STATUS));
         user.setUserType(UserType.ADMIN_USER);
         // not exist
-        result = alertGroupService.delAlertgroupById(user,2);
+        result = alertGroupService.delAlertgroupById(user, 2);
         logger.info(result.toString());
-        Assert.assertEquals(Status.ALERT_GROUP_NOT_EXIST,result.get(Constants.STATUS));
+        Assert.assertEquals(Status.ALERT_GROUP_NOT_EXIST, result.get(Constants.STATUS));
         //success
         Mockito.when(alertGroupMapper.selectById(2)).thenReturn(getEntity());
-        result = alertGroupService.delAlertgroupById(user,2);
+        result = alertGroupService.delAlertgroupById(user, 2);
         logger.info(result.toString());
-        Assert.assertEquals(Status.SUCCESS,result.get(Constants.STATUS));
-
+        Assert.assertEquals(Status.SUCCESS, result.get(Constants.STATUS));
 
     }
-    @Test
-    public  void testGrantUser(){
 
-        Map<String, Object>  result = alertGroupService.grantUser(getLoginUser(),1,"123,321");
-        logger.info(result.toString());
-        Assert.assertEquals(Status.SUCCESS,result.get(Constants.STATUS));
-    }
     @Test
-    public  void testVerifyGroupName(){
+    public void testVerifyGroupName() {
         //group name not exist
-        Result result = alertGroupService.verifyGroupName(getLoginUser(), groupName);
-        logger.info(result.toString());
-        Assert.assertEquals(Status.SUCCESS.getMsg(),result.getMsg());
-        Mockito.when(alertGroupMapper.queryByGroupName(groupName)).thenReturn(getList());
+        boolean result = alertGroupService.existGroupName(groupName);
+        Assert.assertFalse(result);
+        Mockito.when(alertGroupMapper.existGroupName(groupName)).thenReturn(true);
 
         //group name exist
-        result = alertGroupService.verifyGroupName(getLoginUser(), groupName);
-        logger.info(result.toString());
-        Assert.assertEquals(Status.ALERT_GROUP_EXIST.getMsg(),result.getMsg());
+        result = alertGroupService.existGroupName(groupName);
+        Assert.assertTrue(result);
     }
-
 
     /**
      * create admin user
-     * @return
      */
-    private User getLoginUser(){
+    private User getLoginUser() {
 
         User loginUser = new User();
         loginUser.setUserType(UserType.ADMIN_USER);
@@ -196,9 +176,8 @@ public class AlertGroupServiceTest {
 
     /**
      * get list
-     * @return
      */
-    private List<AlertGroup> getList(){
+    private List<AlertGroup> getList() {
         List<AlertGroup> alertGroups = new ArrayList<>();
         alertGroups.add(getEntity());
         return alertGroups;
@@ -206,13 +185,11 @@ public class AlertGroupServiceTest {
 
     /**
      * get entity
-     * @return
      */
-    private AlertGroup getEntity(){
+    private AlertGroup getEntity() {
         AlertGroup alertGroup = new AlertGroup();
         alertGroup.setId(1);
         alertGroup.setGroupName(groupName);
-        alertGroup.setGroupType(AlertType.EMAIL);
         return alertGroup;
     }
 
